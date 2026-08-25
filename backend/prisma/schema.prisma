@@ -1,0 +1,224 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TipoEstoque {
+  serializado
+  sob_demanda
+
+  @@map("tipo_estoque")
+}
+
+enum StatusUnidade {
+  aguardando_codigo
+  disponivel
+  reservado
+  vendido
+  devolvido
+  bloqueado
+
+  @@map("status_unidade")
+}
+
+enum StatusProduto {
+  rascunho
+  ativo
+  inativo
+
+  @@map("status_produto")
+}
+
+enum StatusPedido {
+  pendente
+  confirmado
+  cancelado
+  estornado
+
+  @@map("status_pedido")
+}
+
+enum StatusDevolucao {
+  pendente
+  aprovada_automatica
+  aprovada_manual
+  rejeitada
+
+  @@map("status_devolucao")
+}
+
+enum TipoConteudo {
+  manual
+  cartilha
+  video
+
+  @@map("tipo_conteudo")
+}
+
+enum MotivoReabastecimento {
+  automatico_limiar
+  manual
+
+  @@map("motivo_reabastecimento")
+}
+
+enum TipoUsuario {
+  admin
+  cliente
+}
+
+model Produto {
+  id                     String        @id @default(uuid()) @db.Uuid
+  nome                   String
+  descricao              String?
+  preco                  Decimal       @db.Decimal(10, 2)
+  categoria              String?
+  status                 StatusProduto @default(rascunho)
+  tipoEstoque            TipoEstoque   @default(serializado) @map("tipo_estoque")
+  estoqueLotePadrao      Int           @default(300) @map("estoque_lote_padrao")
+  limiarReabastecimento  Int           @default(30) @map("limiar_reabastecimento")
+  criadoEm               DateTime      @default(now()) @map("criado_em")
+  atualizadoEm           DateTime      @default(now()) @updatedAt @map("atualizado_em")
+
+  unidades          UnidadeEstoque[]
+  itensPedido       ItemPedido[]
+  conteudos         ConteudoProduto[]
+  logsReabastecimento LogReabastecimento[]
+
+  @@map("produtos")
+}
+
+model UnidadeEstoque {
+  id             String        @id @default(uuid()) @db.Uuid
+  produtoId      String        @map("produto_id") @db.Uuid
+  codigoCifrado  Bytes?        @map("codigo_cifrado")
+  codigoHash     String?       @unique @map("codigo_hash")
+  status         StatusUnidade @default(aguardando_codigo)
+  criadoEm       DateTime      @default(now()) @map("criado_em")
+  atualizadoEm   DateTime      @default(now()) @updatedAt @map("atualizado_em")
+
+  produto      Produto      @relation(fields: [produtoId], references: [id])
+  itensPedido  ItemPedido[]
+
+  @@index([produtoId, status])
+  @@map("unidades_estoque")
+}
+
+model Pedido {
+  id                  String       @id @default(uuid()) @db.Uuid
+  compradorEmail      String       @map("comprador_email")
+  status              StatusPedido @default(pendente)
+  valorTotal          Decimal      @map("valor_total") @db.Decimal(10, 2)
+  gatewayTransacaoId  String?      @unique @map("gateway_transacao_id")
+  notaFiscalId        String?      @map("nota_fiscal_id")
+  criadoEm            DateTime     @default(now()) @map("criado_em")
+  confirmadoEm        DateTime?    @map("confirmado_em")
+
+  itens ItemPedido[]
+
+  @@map("pedidos")
+}
+
+model ItemPedido {
+  id                          String    @id @default(uuid()) @db.Uuid
+  pedidoId                    String    @map("pedido_id") @db.Uuid
+  produtoId                   String    @map("produto_id") @db.Uuid
+  unidadeId                   String?   @map("unidade_id") @db.Uuid
+  valorUnitario               Decimal   @map("valor_unitario") @db.Decimal(10, 2)
+  reservadoAte                DateTime? @map("reservado_ate")
+  codigoSobDemandaCifrado     Bytes?    @map("codigo_sob_demanda_cifrado")
+  emitidoEm                   DateTime? @map("emitido_em")
+  criadoEm                    DateTime  @default(now()) @map("criado_em")
+
+  pedido    Pedido          @relation(fields: [pedidoId], references: [id])
+  produto   Produto         @relation(fields: [produtoId], references: [id])
+  unidade   UnidadeEstoque? @relation(fields: [unidadeId], references: [id])
+  acessos   AcessoConteudo[]
+  devolucoes Devolucao[]
+
+  @@index([pedidoId])
+  @@map("itens_pedido")
+}
+
+model AcessoConteudo {
+  id           String   @id @default(uuid()) @db.Uuid
+  itemPedidoId String   @map("item_pedido_id") @db.Uuid
+  tipo         String
+  ip           String?
+  criadoEm     DateTime @default(now()) @map("criado_em")
+
+  itemPedido ItemPedido @relation(fields: [itemPedidoId], references: [id])
+
+  @@index([itemPedidoId])
+  @@map("acessos_conteudo")
+}
+
+model Devolucao {
+  id                 String          @id @default(uuid()) @db.Uuid
+  itemPedidoId       String          @map("item_pedido_id") @db.Uuid
+  motivo             String?
+  status             StatusDevolucao @default(pendente)
+  estornoGatewayId   String?         @map("estorno_gateway_id")
+  criadoEm           DateTime        @default(now()) @map("criado_em")
+  processadoEm       DateTime?       @map("processado_em")
+
+  itemPedido ItemPedido @relation(fields: [itemPedidoId], references: [id])
+
+  @@map("devolucoes")
+}
+
+model ConteudoProduto {
+  id         String       @id @default(uuid()) @db.Uuid
+  produtoId  String       @map("produto_id") @db.Uuid
+  tipo       TipoConteudo
+  titulo     String
+  urlArquivo String       @map("url_arquivo")
+  ordem      Int          @default(0)
+
+  produto Produto @relation(fields: [produtoId], references: [id])
+
+  @@map("conteudos_produto")
+}
+
+model Usuario {
+  id                 String      @id @default(uuid()) @db.Uuid
+  nome               String
+  email              String      @unique
+  senhaHash          String      @map("senha_hash")
+  tipo               TipoUsuario
+  totpSecretCifrado  Bytes?      @map("totp_secret_cifrado")
+  criadoEm           DateTime    @default(now()) @map("criado_em")
+
+  logsAuditoria LogAuditoria[]
+
+  @@map("usuarios")
+}
+
+model LogReabastecimento {
+  id                String                @id @default(uuid()) @db.Uuid
+  produtoId         String                @map("produto_id") @db.Uuid
+  quantidadeGerada  Int                   @map("quantidade_gerada")
+  motivo            MotivoReabastecimento
+  criadoEm          DateTime              @default(now()) @map("criado_em")
+
+  produto Produto @relation(fields: [produtoId], references: [id])
+
+  @@map("logs_reabastecimento")
+}
+
+model LogAuditoria {
+  id          String   @id @default(uuid()) @db.Uuid
+  usuarioId   String?  @map("usuario_id") @db.Uuid
+  acao        String
+  entidade    String
+  entidadeId  String   @map("entidade_id") @db.Uuid
+  criadoEm    DateTime @default(now()) @map("criado_em")
+
+  usuario Usuario? @relation(fields: [usuarioId], references: [id])
+
+  @@map("logs_auditoria")
+}
