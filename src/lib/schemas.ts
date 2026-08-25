@@ -37,6 +37,7 @@ export const produtoSchema = z.object({
   status: z.enum(["ativo", "inativo", "rascunho"]),
   estoqueLotePadrao: z.coerce.number().int().nonnegative().optional(),
   limiarReabastecimento: z.coerce.number().int().nonnegative().optional(),
+  imagemUrl: z.string().url("Informe uma URL válida").optional().or(z.literal("")),
 });
 export type ProdutoInput = z.infer<typeof produtoSchema>;
 

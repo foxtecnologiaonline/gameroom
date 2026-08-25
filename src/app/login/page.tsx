@@ -8,6 +8,7 @@ import { Suspense, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { loginSchema, type LoginInput } from "@/lib/schemas";
 import { mensagemErro } from "@/lib/format";
+import { AuthShell } from "@/components/AuthShell";
 
 export default function LoginPage() {
   return (
@@ -40,36 +41,37 @@ function LoginForm() {
   }
 
   return (
-    <div className="mx-auto max-w-sm">
-      <div className="card p-6">
-        <h1 className="mb-6 text-xl font-semibold">Entrar</h1>
-        {erro && <div className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</div>}
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <label className="label" htmlFor="email">
-              E-mail
-            </label>
-            <input id="email" type="email" className="input" {...register("email")} />
-            {errors.email && <p className="field-error">{errors.email.message}</p>}
-          </div>
-          <div>
-            <label className="label" htmlFor="senha">
-              Senha
-            </label>
-            <input id="senha" type="password" className="input" {...register("senha")} />
-            {errors.senha && <p className="field-error">{errors.senha.message}</p>}
-          </div>
-          <button type="submit" className="btn-primary w-full" disabled={isSubmitting}>
-            {isSubmitting ? "Entrando..." : "Entrar"}
-          </button>
-        </form>
-        <p className="mt-4 text-center text-sm text-slate-600">
-          Não tem conta?{" "}
-          <Link href="/registro" className="text-brand-600 hover:underline">
-            Criar conta
-          </Link>
-        </p>
-      </div>
-    </div>
+    <AuthShell
+      titulo="Bem-vindo de volta"
+      subtitulo="Acesse sua conta para ver suas compras, baixar conteúdos e acompanhar devoluções."
+    >
+      <h2 className="mb-6 text-xl font-semibold text-slate-900">Entrar</h2>
+      {erro && <div className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</div>}
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <div>
+          <label className="label" htmlFor="email">
+            E-mail
+          </label>
+          <input id="email" type="email" className="input" {...register("email")} />
+          {errors.email && <p className="field-error">{errors.email.message}</p>}
+        </div>
+        <div>
+          <label className="label" htmlFor="senha">
+            Senha
+          </label>
+          <input id="senha" type="password" className="input" {...register("senha")} />
+          {errors.senha && <p className="field-error">{errors.senha.message}</p>}
+        </div>
+        <button type="submit" className="btn-primary w-full" disabled={isSubmitting}>
+          {isSubmitting ? "Entrando..." : "Entrar"}
+        </button>
+      </form>
+      <p className="mt-4 text-center text-sm text-slate-600">
+        Não tem conta?{" "}
+        <Link href="/registro" className="text-brand-600 hover:underline">
+          Criar conta
+        </Link>
+      </p>
+    </AuthShell>
   );
 }

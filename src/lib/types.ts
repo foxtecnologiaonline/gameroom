@@ -32,6 +32,7 @@ export interface Produto {
   status: StatusProduto;
   estoqueLotePadrao?: number;
   limiarReabastecimento?: number;
+  imagemUrl?: string;
   conteudos?: ConteudoProduto[];
   createdAt?: string;
 }

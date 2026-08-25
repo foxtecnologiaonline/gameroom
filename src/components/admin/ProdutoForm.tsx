@@ -27,12 +27,17 @@ export function ProdutoForm({ produto, onSubmit, submitLabel }: ProdutoFormProps
           status: produto.status,
           estoqueLotePadrao: produto.estoqueLotePadrao,
           limiarReabastecimento: produto.limiarReabastecimento,
+          imagemUrl: produto.imagemUrl,
         }
       : { status: "rascunho" },
   });
 
+  function normalizarEEnviar(data: ProdutoInput) {
+    return onSubmit({ ...data, imagemUrl: data.imagemUrl || undefined });
+  }
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit(normalizarEEnviar)} className="space-y-4">
       <div>
         <label className="label" htmlFor="nome">
           Nome
@@ -64,6 +69,17 @@ export function ProdutoForm({ produto, onSubmit, submitLabel }: ProdutoFormProps
           <input id="categoria" className="input" {...register("categoria")} />
           {errors.categoria && <p className="field-error">{errors.categoria.message}</p>}
         </div>
+      </div>
+
+      <div>
+        <label className="label" htmlFor="imagemUrl">
+          URL da imagem de capa (opcional)
+        </label>
+        <input id="imagemUrl" className="input" placeholder="https://..." {...register("imagemUrl")} />
+        {errors.imagemUrl && <p className="field-error">{errors.imagemUrl.message}</p>}
+        <p className="mt-1 text-xs text-slate-500">
+          Se não informada, uma arte de capa é gerada automaticamente a partir do nome e categoria.
+        </p>
       </div>
 
       <div>
