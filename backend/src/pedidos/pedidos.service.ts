@@ -14,6 +14,8 @@ import {
   JOB_LIBERAR_RESERVA_EXPIRADA,
 } from '../jobs/queues.constants';
 import { CriarPedidoDto } from './dto/criar-pedido.dto';
+import { ListarPedidosQueryDto } from './dto/listar-pedidos-query.dto';
+import { paginar } from '../common/pagination/pagination.dto';
 
 @Injectable()
 export class PedidosService {
@@ -158,5 +160,20 @@ export class PedidosService {
     });
 
     return this.obterPorId(id);
+  }
+
+  async listarTodosAdmin(query: ListarPedidosQueryDto) {
+    const where = query.status ? { status: query.status } : {};
+    const [dados, total] = await Promise.all([
+      this.prisma.pedido.findMany({
+        where,
+        include: { itens: true },
+        orderBy: { criadoEm: 'desc' },
+        skip: query.skip,
+        take: query.take,
+      }),
+      this.prisma.pedido.count({ where }),
+    ]);
+    return paginar(dados, total, query);
   }
 }

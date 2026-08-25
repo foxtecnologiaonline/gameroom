@@ -228,4 +228,17 @@ export class EstoqueService {
       return produto.estoqueLotePadrao;
     });
   }
+
+  async listarReabastecimentos(query: PaginationQueryDto) {
+    const [dados, total] = await Promise.all([
+      this.prisma.logReabastecimento.findMany({
+        include: { produto: { select: { id: true, nome: true } } },
+        orderBy: { criadoEm: 'desc' },
+        skip: query.skip,
+        take: query.take,
+      }),
+      this.prisma.logReabastecimento.count(),
+    ]);
+    return paginar(dados, total, query);
+  }
 }

@@ -1,6 +1,7 @@
 export const QUEUE_ESTOQUE = 'estoque';
 export const QUEUE_RESERVAS = 'reservas';
 export const QUEUE_EMISSAO = 'emissao';
+export const QUEUE_DEVOLUCOES = 'devolucoes';
 
 export const JOB_GERAR_ESTOQUE_INICIAL = 'gerar-estoque-inicial';
 export const JOB_REABASTECER_ESTOQUE = 'reabastecer-estoque';
@@ -8,6 +9,7 @@ export const JOB_REABASTECER_ESTOQUE = 'reabastecer-estoque';
 export const JOB_VERIFICAR_REABASTECIMENTO = 'verificar-reabastecimento';
 export const JOB_LIBERAR_RESERVA_EXPIRADA = 'liberar-reserva-expirada';
 export const JOB_EMITIR_E_ENTREGAR = 'emitir-e-entregar';
+export const JOB_PROCESSAR_DEVOLUCAO = 'processar-devolucao';
 
 export interface GerarEstoqueInicialJobData {
   produtoId: string;
@@ -24,4 +26,8 @@ export interface LiberarReservaExpiradaJobData {
 
 export interface EmitirEEntregarJobData {
   itemPedidoId: string;
+}
+
+export interface ProcessarDevolucaoJobData {
+  devolucaoId: string;
 }

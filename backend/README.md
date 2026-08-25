@@ -1,12 +1,19 @@
 # Backend — Plataforma de venda e gestão de ativos digitais
 
-Implementação da **Fase 1** da especificação técnica v2 (ver
+Implementação das **Fases 1 e 2** da especificação técnica v2 (ver
 [`../docs/especificacao-tecnica-v2.md`](../docs/especificacao-tecnica-v2.md)):
-setup do projeto, produtos, estoque (com importação/cifragem de código),
-conteúdo, checkout com reserva concorrente, webhook de pagamento idempotente,
-emissão/entrega automática e reabastecimento automático de estoque.
 
-Devoluções, área do cliente e painel admin (Fase 2) ainda não foram implementados.
+- **Fase 1**: setup do projeto, produtos, estoque (com importação/cifragem de
+  código), conteúdo, checkout com reserva concorrente, webhook de pagamento
+  idempotente, emissão/entrega automática e reabastecimento automático de estoque.
+- **Fase 2**: devoluções com aprovação automática (prazo + verificação de uso)
+  e estorno via job assíncrono, fila de revisão manual para os casos não
+  elegíveis, área do cliente (histórico de compras, acesso a conteúdo/código
+  com URLs assinadas) e relatórios do painel admin (vendas, reabastecimentos,
+  auditoria).
+
+Antifraude, integração de nota fiscal e testes de concorrência automatizados
+(Fase 3) ainda não foram implementados.
 
 ## Stack
 
@@ -65,6 +72,27 @@ O webhook (`POST /webhooks/pagamento`) exige o header `x-webhook-signature`
 com o HMAC-SHA256 do corpo bruto usando `PAGAMENTO_WEBHOOK_SECRET` — ver
 `src/pagamento/webhook-signature.util.ts`. Em produção, trocar pela
 verificação nativa do SDK do gateway escolhido (Stripe/Mercado Pago/PagSeguro).
+
+## Devoluções (Fase 2)
+
+- `POST /itens-pedido/:itemPedidoId/devolucoes` (cliente autenticado, dono do
+  pedido): se dentro do prazo (7 dias corridos da confirmação) e sem nenhum
+  acesso registrado a conteúdo/código, aprova automaticamente — bloqueia a
+  unidade (o código já foi exposto por e-mail, não é revendido) e enfileira o
+  estorno. Caso contrário, fica `pendente` para revisão manual.
+- `GET /admin/devolucoes/revisao-manual` + `POST /admin/devolucoes/:id/decisao`
+  (admin): decide os casos não elegíveis pela regra automática.
+- O evento de "uso" que desqualifica a aprovação automática é registrado pela
+  própria área do cliente ao baixar um conteúdo ou visualizar o código
+  (`GET /minhas-compras/itens/:itemPedidoId/...`) — ver `AcessoConteudo`.
+
+## Área do cliente e painel admin (Fase 2)
+
+- `GET /minhas-compras`, `GET /minhas-compras/itens/:id/conteudos/:conteudoId`,
+  `GET /minhas-compras/itens/:id/codigo` (cliente autenticado; cada leitura de
+  código é registrada em `logs_auditoria`).
+- `GET /admin/pedidos` (filtrável por `status`), `GET /admin/reabastecimentos`,
+  `GET /admin/auditoria` (já existia desde a Fase 1).
 
 ## Testes
 

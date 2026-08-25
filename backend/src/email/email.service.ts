@@ -19,6 +19,12 @@ export interface DadosDevolucaoAprovada {
   produtoNome: string;
 }
 
+export interface DadosDevolucaoRejeitada {
+  destinatario: string;
+  produtoNome: string;
+  motivo?: string;
+}
+
 @Injectable()
 export class EmailService {
   constructor(
@@ -51,6 +57,18 @@ export class EmailService {
       para: dados.destinatario,
       assunto: `Devolução aprovada: ${dados.produtoNome}`,
       html: `<p>Sua devolução para "${dados.produtoNome}" foi aprovada e o estorno foi solicitado.</p>`,
+    });
+  }
+
+  async enviarDevolucaoRejeitada(
+    dados: DadosDevolucaoRejeitada,
+  ): Promise<void> {
+    await this.provider.enviar({
+      para: dados.destinatario,
+      assunto: `Devolução não aprovada: ${dados.produtoNome}`,
+      html: `<p>Sua solicitação de devolução para "${dados.produtoNome}" não foi aprovada.${
+        dados.motivo ? ` Motivo: ${dados.motivo}` : ''
+      }</p>`,
     });
   }
 }

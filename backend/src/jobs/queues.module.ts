@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import {
+  QUEUE_DEVOLUCOES,
   QUEUE_EMISSAO,
   QUEUE_ESTOQUE,
   QUEUE_RESERVAS,
@@ -34,6 +35,15 @@ import {
       },
       {
         name: QUEUE_EMISSAO,
+        defaultJobOptions: {
+          attempts: 5,
+          backoff: { type: 'exponential', delay: 10000 },
+          removeOnComplete: { count: 1000 },
+          removeOnFail: false,
+        },
+      },
+      {
+        name: QUEUE_DEVOLUCOES,
         defaultJobOptions: {
           attempts: 5,
           backoff: { type: 'exponential', delay: 10000 },

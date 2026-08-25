@@ -10,6 +10,8 @@ import { EstoqueModule } from './estoque/estoque.module';
 import { ConteudoModule } from './conteudo/conteudo.module';
 import { PedidosModule } from './pedidos/pedidos.module';
 import { PagamentoModule } from './pagamento/pagamento.module';
+import { DevolucoesModule } from './devolucoes/devolucoes.module';
+import { AreaClienteModule } from './area-cliente/area-cliente.module';
 import { JobsModule } from './jobs/jobs.module';
 import { HealthController } from './health.controller';
 
@@ -34,6 +36,8 @@ import { HealthController } from './health.controller';
     ConteudoModule,
     PedidosModule,
     PagamentoModule,
+    DevolucoesModule,
+    AreaClienteModule,
     JobsModule,
   ],
   controllers: [HealthController],
