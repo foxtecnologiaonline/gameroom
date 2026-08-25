@@ -4,6 +4,7 @@ import {
   QUEUE_DEVOLUCOES,
   QUEUE_EMISSAO,
   QUEUE_ESTOQUE,
+  QUEUE_NOTA_FISCAL,
   QUEUE_RESERVAS,
 } from './queues.constants';
 
@@ -44,6 +45,15 @@ import {
       },
       {
         name: QUEUE_DEVOLUCOES,
+        defaultJobOptions: {
+          attempts: 5,
+          backoff: { type: 'exponential', delay: 10000 },
+          removeOnComplete: { count: 1000 },
+          removeOnFail: false,
+        },
+      },
+      {
+        name: QUEUE_NOTA_FISCAL,
         defaultJobOptions: {
           attempts: 5,
           backoff: { type: 'exponential', delay: 10000 },

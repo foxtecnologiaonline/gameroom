@@ -8,6 +8,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { PagamentoService } from './pagamento.service';
 import { WebhookPagamentoDto } from './dto/webhook-pagamento.dto';
@@ -22,6 +23,7 @@ export class PagamentoController {
 
   @Post()
   @HttpCode(200)
+  @Throttle({ default: { limit: 120, ttl: 60_000 } })
   async receberWebhook(
     @Req() request: Request & { rawBody?: Buffer },
     @Headers('x-webhook-signature') assinatura: string,

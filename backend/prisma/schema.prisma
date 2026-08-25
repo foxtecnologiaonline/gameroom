@@ -71,6 +71,14 @@ enum TipoUsuario {
   cliente
 }
 
+enum StatusRetencaoFraude {
+  pendente
+  liberada
+  bloqueada
+
+  @@map("status_retencao_fraude")
+}
+
 model Produto {
   id                     String        @id @default(uuid()) @db.Uuid
   nome                   String
@@ -119,6 +127,7 @@ model Pedido {
   confirmadoEm        DateTime?    @map("confirmado_em")
 
   itens ItemPedido[]
+  retencoesFraude RetencaoFraude[]
 
   @@map("pedidos")
 }
@@ -208,6 +217,19 @@ model LogReabastecimento {
   produto Produto @relation(fields: [produtoId], references: [id])
 
   @@map("logs_reabastecimento")
+}
+
+model RetencaoFraude {
+  id          String               @id @default(uuid()) @db.Uuid
+  pedidoId    String               @map("pedido_id") @db.Uuid
+  motivo      String
+  status      StatusRetencaoFraude @default(pendente)
+  criadoEm    DateTime             @default(now()) @map("criado_em")
+  decididoEm  DateTime?            @map("decidido_em")
+
+  pedido Pedido @relation(fields: [pedidoId], references: [id])
+
+  @@map("retencoes_fraude")
 }
 
 model LogAuditoria {

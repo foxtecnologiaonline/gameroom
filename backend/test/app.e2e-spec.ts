@@ -20,6 +20,9 @@ describe('AppModule (e2e)', () => {
   });
 
   it('/healthz (GET)', () => {
-    return request(app.getHttpServer()).get('/healthz').expect(200).expect({ status: 'ok' });
+    return request(app.getHttpServer())
+      .get('/healthz')
+      .expect(200)
+      .expect({ status: 'ok' });
   });
 });

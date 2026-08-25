@@ -46,6 +46,27 @@ export class EstoqueService {
     });
   }
 
+  /**
+   * Conta o estoque "em pipeline": disponível para venda + aguardando
+   * importação de código. Usado para decidir reabastecimento — contar só
+   * `disponivel` faria o gatilho gerar um lote novo a cada verificação
+   * enquanto os códigos do lote anterior não fossem importados, já que as
+   * unidades recém-geradas nascem `aguardando_codigo`, não `disponivel`.
+   */
+  private async contarEstoquePipeline(
+    produtoId: string,
+    tx: Tx | PrismaService = this.prisma,
+  ): Promise<number> {
+    return tx.unidadeEstoque.count({
+      where: {
+        produtoId,
+        status: {
+          in: [StatusUnidade.disponivel, StatusUnidade.aguardando_codigo],
+        },
+      },
+    });
+  }
+
   async listar(
     produtoId: string,
     status: StatusUnidade | undefined,
@@ -208,9 +229,16 @@ export class EstoqueService {
         return 0;
       }
 
-      const disponiveis = await this.contarDisponiveis(produtoId, tx);
-      if (disponiveis >= produto.limiarReabastecimento) {
+      const emPipeline = await this.contarEstoquePipeline(produtoId, tx);
+      if (emPipeline >= produto.limiarReabastecimento) {
         return 0;
+      }
+
+      const disponiveisAgora = await this.contarDisponiveis(produtoId, tx);
+      if (disponiveisAgora === 0) {
+        this.logger.warn(
+          `ALERTA: produto ${produtoId} está com 0 unidades "disponivel" mesmo reabastecendo — a importação de códigos não está acompanhando a demanda.`,
+        );
       }
 
       await this.gerarLote(produtoId, produto.estoqueLotePadrao, tx);
@@ -223,7 +251,7 @@ export class EstoqueService {
       });
 
       this.logger.log(
-        `Reabastecimento automático: produto ${produtoId} gerou ${produto.estoqueLotePadrao} novas unidades (disponíveis antes: ${disponiveis}, limiar: ${produto.limiarReabastecimento})`,
+        `Reabastecimento automático: produto ${produtoId} gerou ${produto.estoqueLotePadrao} novas unidades (estoque em pipeline antes: ${emPipeline}, limiar: ${produto.limiarReabastecimento})`,
       );
       return produto.estoqueLotePadrao;
     });

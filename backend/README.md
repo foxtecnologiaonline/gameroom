@@ -1,6 +1,6 @@
 # Backend — Plataforma de venda e gestão de ativos digitais
 
-Implementação das **Fases 1 e 2** da especificação técnica v2 (ver
+Implementação completa das **Fases 1, 2 e 3** da especificação técnica v2 (ver
 [`../docs/especificacao-tecnica-v2.md`](../docs/especificacao-tecnica-v2.md)):
 
 - **Fase 1**: setup do projeto, produtos, estoque (com importação/cifragem de
@@ -11,9 +11,10 @@ Implementação das **Fases 1 e 2** da especificação técnica v2 (ver
   elegíveis, área do cliente (histórico de compras, acesso a conteúdo/código
   com URLs assinadas) e relatórios do painel admin (vendas, reabastecimentos,
   auditoria).
-
-Antifraude, integração de nota fiscal e testes de concorrência automatizados
-(Fase 3) ainda não foram implementados.
+- **Fase 3**: antifraude (rate limiting + fila de retenção de pedidos de
+  risco), observabilidade (request id de correlação + log estruturado por
+  requisição), integração de nota fiscal (ponto plugável) e testes
+  automatizados de concorrência/idempotência contra Postgres/Redis reais.
 
 ## Stack
 
@@ -94,13 +95,50 @@ verificação nativa do SDK do gateway escolhido (Stripe/Mercado Pago/PagSeguro)
 - `GET /admin/pedidos` (filtrável por `status`), `GET /admin/reabastecimentos`,
   `GET /admin/auditoria` (já existia desde a Fase 1).
 
+## Antifraude e retenção de pedidos de risco (Fase 3)
+
+- Rate limiting (`@nestjs/throttler`) global (60 req/min) e mais restritivo em
+  rotas sensíveis: `/auth/login` (10/min), `/pedidos` (5/min), `/webhooks/pagamento` (120/min).
+- Após a confirmação do pagamento, `FraudeService` avalia sinais simples e
+  explicáveis (≥5 pedidos confirmados na última hora ou ≥2 devoluções
+  aprovadas nos últimos 30 dias para o mesmo e-mail). Se houver risco, o
+  pedido fica retido — emissão e nota fiscal ficam pendentes até decisão do
+  admin.
+- `GET /admin/fraude/retencoes` + `POST /admin/fraude/retencoes/:id/decisao`
+  (`{"liberar": true|false}`): liberar dispara emissão/nota fiscal
+  normalmente; bloquear cancela o pedido (`status: estornado`), bloqueia a(s)
+  unidade(s) e solicita o estorno.
+
+## Nota fiscal (Fase 3)
+
+Ponto de integração plugável (`NotaFiscalProvider`, mesmo padrão do
+`EmailProvider`/`RefundGateway`) — em produção, trocar pela integração real
+(ex.: NFE.io). Emitida automaticamente pelo job `emitir-nota-fiscal` após a
+confirmação do pagamento (ou após a liberação de um pedido retido por
+fraude); idempotente via `pedidos.notaFiscalId`.
+
+## Observabilidade (Fase 3)
+
+Todo request HTTP recebe/propaga um `x-request-id` (`RequestIdMiddleware`) e
+gera uma linha de log estruturada com método, rota, status e duração
+(`LoggingInterceptor`) — a correlação mínima para depurar o fluxo assíncrono
+(controller → job enfileirado) em produção sem depender de um APM externo.
+Falhas críticas (emissão ou estorno esgotando tentativas, reconciliação de
+estoque) já usavam `Logger.error` desde as fases anteriores.
+
 ## Testes
 
 ```bash
-npm test        # unitários
+npm test                                  # unitários
+npx jest --config ./test/jest-e2e.json    # e2e + concorrência (requer Postgres/Redis reais)
 ```
 
-Cobrem cifragem/decifragem de código e verificação de assinatura de webhook.
-Testes de integração/concorrência (SKIP LOCKED sob disputa, idempotência de
-webhook fim a fim) ainda não foram automatizados — foram validados
-manualmente durante o desenvolvimento; ver §9 da especificação v2.
+Os unitários cobrem cifragem/decifragem de código e verificação de assinatura
+de webhook. Os testes e2e incluem uma suíte dedicada de concorrência/idempotência
+(`test/concorrencia.e2e-spec.ts`) que roda contra Postgres/Redis reais (sem
+mocks) e cobre: reserva concorrente sob disputa de estoque (SKIP LOCKED),
+idempotência do webhook sob entrega concorrente, reabastecimento concorrente
+sem duplicar o lote, e reaproveitamento de uma unidade cancelada em uma venda
+futura. Essa última suíte já pegou dois bugs reais durante o desenvolvimento
+(um de modelagem, um de lógica de reabastecimento) que só apareceram sob
+concorrência de verdade — ver histórico de commits.

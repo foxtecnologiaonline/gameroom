@@ -25,6 +25,11 @@ export interface DadosDevolucaoRejeitada {
   motivo?: string;
 }
 
+export interface DadosPedidoCanceladoRevisao {
+  destinatario: string;
+  pedidoId: string;
+}
+
 @Injectable()
 export class EmailService {
   constructor(
@@ -69,6 +74,16 @@ export class EmailService {
       html: `<p>Sua solicitação de devolução para "${dados.produtoNome}" não foi aprovada.${
         dados.motivo ? ` Motivo: ${dados.motivo}` : ''
       }</p>`,
+    });
+  }
+
+  async enviarPedidoCanceladoRevisao(
+    dados: DadosPedidoCanceladoRevisao,
+  ): Promise<void> {
+    await this.provider.enviar({
+      para: dados.destinatario,
+      assunto: `Pedido cancelado após revisão de segurança`,
+      html: `<p>Seu pedido ${dados.pedidoId} foi cancelado após uma revisão de segurança e o valor será estornado. Se você acredita que isso é um engano, entre em contato com o suporte.</p>`,
     });
   }
 }

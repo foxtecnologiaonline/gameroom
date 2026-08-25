@@ -9,11 +9,14 @@ import { Queue } from 'bullmq';
 import { StatusPedido, StatusUnidade } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { EstoqueService } from '../estoque/estoque.service';
+import { FraudeService } from '../fraude/fraude.service';
 import {
   QUEUE_EMISSAO,
   QUEUE_ESTOQUE,
+  QUEUE_NOTA_FISCAL,
   JOB_EMITIR_E_ENTREGAR,
   JOB_REABASTECER_ESTOQUE,
+  JOB_EMITIR_NOTA_FISCAL,
 } from '../jobs/queues.constants';
 import { WebhookPagamentoDto } from './dto/webhook-pagamento.dto';
 
@@ -24,8 +27,10 @@ export class PagamentoService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly estoqueService: EstoqueService,
+    private readonly fraudeService: FraudeService,
     @InjectQueue(QUEUE_EMISSAO) private readonly emissaoQueue: Queue,
     @InjectQueue(QUEUE_ESTOQUE) private readonly estoqueQueue: Queue,
+    @InjectQueue(QUEUE_NOTA_FISCAL) private readonly notaFiscalQueue: Queue,
   ) {}
 
   async processarWebhook(dto: WebhookPagamentoDto): Promise<void> {
@@ -43,7 +48,20 @@ export class PagamentoService {
     }
 
     await this.confirmarPagamentoAprovado(dto);
-    await this.reenfileirarEmissoesPendentes(dto.pedidoId);
+
+    const retidoPorFraude = await this.fraudeService.avaliarERegistrarRisco(
+      dto.pedidoId,
+      pedido.compradorEmail,
+    );
+    if (!retidoPorFraude) {
+      await this.reenfileirarEmissoesPendentes(dto.pedidoId);
+      await this.notaFiscalQueue.add(
+        JOB_EMITIR_NOTA_FISCAL,
+        { pedidoId: dto.pedidoId },
+        { jobId: `${JOB_EMITIR_NOTA_FISCAL}-${dto.pedidoId}` },
+      );
+    }
+
     await this.dispararReabastecimento(dto.pedidoId);
   }
 
