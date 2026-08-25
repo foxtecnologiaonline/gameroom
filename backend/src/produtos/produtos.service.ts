@@ -15,7 +15,6 @@ import {
   QUEUE_ESTOQUE,
   JOB_GERAR_ESTOQUE_INICIAL,
 } from '../jobs/queues.constants';
-import { ConteudoService } from '../conteudo/conteudo.service';
 import { CriarProdutoDto } from './dto/criar-produto.dto';
 import { AtualizarProdutoDto } from './dto/atualizar-produto.dto';
 
@@ -24,7 +23,6 @@ export class ProdutosService {
   constructor(
     private readonly prisma: PrismaService,
     @InjectQueue(QUEUE_ESTOQUE) private readonly estoqueQueue: Queue,
-    private readonly conteudoService: ConteudoService,
   ) {}
 
   async criar(dto: CriarProdutoDto): Promise<Produto> {
@@ -91,18 +89,32 @@ export class ProdutosService {
     return paginar(dados, total, query);
   }
 
+  /**
+   * Endpoint público — nunca retorna URL assinada aqui. O download real só
+   * é liberado após a compra, via área do cliente (que também registra o
+   * acesso consultado pela regra de elegibilidade de devolução). Retornar a
+   * URL assinada neste endpoint permitiria baixar o conteúdo pago sem comprar.
+   */
   async obterPorId(id: string) {
     const produto = await this.prisma.produto.findUnique({
       where: { id },
-      include: { conteudos: { orderBy: { ordem: 'asc' } } },
+      include: {
+        conteudos: {
+          orderBy: { ordem: 'asc' },
+          select: {
+            id: true,
+            produtoId: true,
+            tipo: true,
+            titulo: true,
+            ordem: true,
+          },
+        },
+      },
     });
     if (!produto) {
       throw new NotFoundException('Produto não encontrado');
     }
-    const conteudos = await this.conteudoService.comUrlAssinada(
-      produto.conteudos,
-    );
-    return { ...produto, conteudos };
+    return produto;
   }
 
   async atualizar(id: string, dto: AtualizarProdutoDto): Promise<Produto> {
