@@ -25,6 +25,11 @@
 
 O restante do documento já incorpora essas correções — não é necessário aplicar o diff manualmente.
 
+### Decisões de escopo do MVP (26/08/2026)
+
+- **Biblioteca de conteúdo fica fora do MVP, entra na v2.0**: upload de manuais/cartilhas/vídeos (`conteudos_produto`), storage S3 e o bloco de "materiais de apoio" no e-mail de entrega não são necessários para o MVP. O schema e o módulo (`conteudo/`) continuam existindo no código, só não são pré-requisito de lançamento — nenhum produto do MVP precisa ter conteúdo vinculado.
+- **Modelo de entrega do MVP = credencial única por comprador**: cada unidade vendida entrega um usuário e senha exclusivos daquele comprador (nunca reaproveitados), não uma "chave" genérica. Isso **não exige mudança de schema nem de código** — é o mesmo campo `codigo` de `unidades_estoque` já usado hoje, tratado como string opaca (cifrada, única, importada em lote). Convenção de formatação na importação: uma credencial por linha, no formato `usuario:senha`.
+
 ---
 
 ## 1. Visão geral (ajustada)
@@ -44,7 +49,7 @@ Módulos: catálogo de produtos, estoque dinâmico por unidade, pedidos/checkout
 - **ORM/migrations**: Prisma (schema-first, migrations versionadas). Para o caminho de reserva de estoque (`SELECT ... FOR UPDATE SKIP LOCKED`) e para o lock de reabastecimento (`pg_advisory_xact_lock`), usar `prisma.$transaction` com `$queryRaw` — o Prisma Client não expressa `SKIP LOCKED` nativamente.
 - **Banco de dados**: PostgreSQL 15+
 - **Fila/jobs assíncronos**: BullMQ + Redis. Reservas expiram via **delayed job**, não via cron de varredura.
-- **Storage de arquivos**: S3 (ou compatível) com URLs assinadas de curta duração (≤ 15 min) para conteúdo e para exibição pontual de código de licença.
+- **Storage de arquivos**: S3 (ou compatível) com URLs assinadas de curta duração (≤ 15 min) para conteúdo e para exibição pontual de código de licença. *(v2.0 — biblioteca de conteúdo não é pré-requisito do MVP, ver "Decisões de escopo do MVP" acima.)*
 - **Cifragem de dados sensíveis**: `codigo` da unidade cifrado em repouso (AES-256-GCM), chave gerenciada via KMS/secrets manager, nunca no código-fonte.
 - **Autenticação**: JWT de curta duração + refresh token; roles `admin`/`cliente` separadas; 2FA obrigatório para contas admin (elas enxergam código de licença em claro e dados financeiros).
 - **Frontend admin + loja**: Next.js
@@ -273,7 +278,7 @@ prisma/
 1. Setup do projeto (NestJS + Prisma + PostgreSQL + Redis + BullMQ) e migrations do schema §3
 2. Módulo de produtos (CRUD) + geração automática de lote em `aguardando_codigo`
 3. Módulo de estoque: importação de códigos (cifragem, hash, dedupe) + transições de status + lock de concorrência
-4. Módulo de conteúdo (upload e vínculo de manuais/cartilhas/vídeos)
+4. ~~Módulo de conteúdo (upload e vínculo de manuais/cartilhas/vídeos)~~ — adiado para v2.0, não bloqueia o MVP
 5. Módulo de pedidos/checkout (reserva via `FOR UPDATE SKIP LOCKED`) + delayed job de expiração de reserva
 6. Webhook de pagamento (verificação de assinatura + idempotência) + confirmação atômica
 7. Job de emissão e entrega automática (e-mail + liberação de acesso), idempotente com DLQ/alerta

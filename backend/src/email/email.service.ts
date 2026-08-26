@@ -45,7 +45,7 @@ export class EmailService {
 
     const html = `
       <h1>Sua compra: ${dados.produtoNome}</h1>
-      ${dados.codigo ? `<p>Seu código de acesso: <strong>${dados.codigo}</strong></p>` : ''}
+      ${dados.codigo ? `<p>Seu usuário e senha de acesso: <strong>${dados.codigo}</strong></p>` : ''}
       <p>Materiais de apoio (links válidos por tempo limitado):</p>
       <ul>${linhasConteudo}</ul>
     `;
