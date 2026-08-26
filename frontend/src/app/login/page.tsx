@@ -4,7 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth, mensagemDeErro } from '@/lib/auth';
-import { Button, Card, ErrorMessage, Input, Label } from '@/components/ui';
+import { Button, ErrorMessage, Input, Label } from '@/components/ui';
+import { AuthShell } from '@/components/AuthShell';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -29,30 +30,31 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="mx-auto max-w-sm">
-      <h1 className="mb-6 text-xl font-semibold">Entrar</h1>
-      <Card>
-        <form onSubmit={enviar} className="space-y-4">
-          <div>
-            <Label>E-mail</Label>
-            <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-          </div>
-          <div>
-            <Label>Senha</Label>
-            <Input type="password" required value={senha} onChange={(e) => setSenha(e.target.value)} />
-          </div>
-          <ErrorMessage>{erro}</ErrorMessage>
-          <Button type="submit" disabled={enviando} className="w-full">
-            {enviando ? 'Entrando…' : 'Entrar'}
-          </Button>
-        </form>
-        <p className="mt-4 text-center text-sm text-zinc-500">
-          Não tem conta?{' '}
-          <Link href="/registrar" className="font-medium text-zinc-900 underline">
-            Criar conta
-          </Link>
-        </p>
-      </Card>
-    </div>
+    <AuthShell
+      titulo="Bem-vindo de volta"
+      subtitulo="Acesse sua conta para ver suas compras, baixar conteúdos e acompanhar devoluções."
+    >
+      <h2 className="mb-6 text-xl font-semibold text-zinc-900">Entrar</h2>
+      <form onSubmit={enviar} className="space-y-4">
+        <div>
+          <Label>E-mail</Label>
+          <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+        </div>
+        <div>
+          <Label>Senha</Label>
+          <Input type="password" required value={senha} onChange={(e) => setSenha(e.target.value)} />
+        </div>
+        <ErrorMessage>{erro}</ErrorMessage>
+        <Button type="submit" disabled={enviando} className="w-full">
+          {enviando ? 'Entrando…' : 'Entrar'}
+        </Button>
+      </form>
+      <p className="mt-4 text-center text-sm text-zinc-500">
+        Não tem conta?{' '}
+        <Link href="/registrar" className="font-medium text-zinc-900 underline">
+          Criar conta
+        </Link>
+      </p>
+    </AuthShell>
   );
 }
