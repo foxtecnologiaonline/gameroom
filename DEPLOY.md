@@ -84,3 +84,45 @@ comuns:
 - **VPS único**: o `docker-compose.yml` da raiz roda como está atrás de um
   reverse proxy (Caddy/Nginx) para TLS — troque só os serviços gerenciados
   (banco, fila) se quiser mais resiliência que containers no mesmo host.
+
+### Stack escolhida para o MVP: Vercel (frontend) + Railway (backend) + Supabase (banco)
+
+A Vercel é serverless (sem processo persistente) e por isso **não roda o
+backend** — ele depende de um worker BullMQ sempre de pé para os jobs
+assíncronos (emissão, expiração de reserva, reabastecimento, devolução). Só o
+frontend Next.js vai na Vercel; o backend + Redis vão na Railway.
+
+**No Railway:**
+1. New Project → Deploy from GitHub repo → aponte para este repositório.
+2. Configure o serviço do backend com **root directory `backend/`** (é onde
+   está o `Dockerfile`) — o Railway detecta e builda a imagem sozinho.
+3. Adicione um serviço **Redis** pelo template do próprio Railway (New →
+   Database → Redis). Ele expõe automaticamente a variável `REDIS_URL` —
+   basta referenciá-la (`${{Redis.REDIS_URL}}`) nas env vars do serviço do
+   backend; o código já sabe ler `REDIS_URL` (com usuário/senha/TLS
+   embutidos).
+4. Defina as env vars do backend (Settings → Variables):
+   - `DATABASE_URL` — connection pooling string do Supabase (porta `6543`,
+     com `?pgbouncer=true` no final)
+   - `DIRECT_URL` — direct connection do Supabase (porta `5432`)
+   - `REDIS_URL` — `${{Redis.REDIS_URL}}` (referência ao serviço Redis do
+     passo 3)
+   - `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `CODIGO_ENCRYPTION_KEY`,
+     `PAGAMENTO_WEBHOOK_SECRET` — gerados com `openssl rand -base64 32`
+   - `RESERVA_EXPIRACAO_MINUTOS=15`
+   - O Railway injeta `PORT` sozinho — o backend já escuta
+     `process.env.PORT` (`src/main.ts`), não precisa definir.
+5. Deploy. O `Dockerfile` já roda `prisma migrate deploy` a cada boot — a
+   primeira subida cria o schema inteiro no Supabase automaticamente.
+6. Depois do primeiro deploy com sucesso, crie o admin: no shell do Railway
+   (Settings → botão de shell do serviço, ou `railway run`), rode
+   `ADMIN_SEED_EMAIL=... ADMIN_SEED_SENHA=... npx prisma db seed`.
+
+**Na Vercel**, aponte `NEXT_PUBLIC_API_URL` para a URL pública que o Railway
+gerar para o backend (ex.: `https://gameroom-backend.up.railway.app`) e
+faça redeploy do frontend — essa variável é embutida no bundle em build
+time, então só funciona depois de configurada e re-buildada.
+
+**No backend**, depois que a URL da Vercel for definitiva, restringir o CORS
+(`app.enableCors()` em `src/main.ts`, hoje aberto) a essa origem — ver linha
+"Backend" na tabela acima.
