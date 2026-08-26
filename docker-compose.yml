@@ -30,6 +30,10 @@ services:
       context: ./backend
     environment:
       DATABASE_URL: postgresql://gameroom:${POSTGRES_PASSWORD:-gameroom_dev}@postgres:5432/gameroom?schema=public
+      # Igual a DATABASE_URL aqui (Postgres local, sem pooler). Em produção com
+      # Supabase, DATABASE_URL aponta para o pooler (porta 6543) e DIRECT_URL
+      # para a conexão direta (porta 5432) — migrations exigem conexão direta.
+      DIRECT_URL: postgresql://gameroom:${POSTGRES_PASSWORD:-gameroom_dev}@postgres:5432/gameroom?schema=public
       REDIS_HOST: redis
       REDIS_PORT: 6379
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?defina JWT_ACCESS_SECRET no .env}

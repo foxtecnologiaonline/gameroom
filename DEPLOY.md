@@ -54,7 +54,7 @@ desenvolvimento inseguros ou simulados:
 
 | Item | O que fazer |
 |---|---|
-| Banco de dados | Postgres gerenciado (RDS, Cloud SQL, Neon, etc.), não o container do compose |
+| Banco de dados | Postgres gerenciado (RDS, Cloud SQL, Neon, Supabase, etc.), não o container do compose. **Com Supabase**: use a *connection pooling string* (porta `6543`, com `?pgbouncer=true` no final) em `DATABASE_URL`, e a *direct connection* (porta `5432`) em `DIRECT_URL` — migrations não funcionam através do pooler transacional |
 | Redis | Redis gerenciado (ElastiCache, Upstash, etc.) |
 | Segredos | `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `CODIGO_ENCRYPTION_KEY`, `PAGAMENTO_WEBHOOK_SECRET` gerados com `openssl rand -base64 32` e guardados num secrets manager — nunca commitados |
 | Armazenamento de conteúdo | *(v2.0 — não bloqueia o deploy do MVP)* Bucket S3 real (ou compatível) com as credenciais em `S3_*` |
