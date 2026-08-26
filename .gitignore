@@ -1,0 +1,6 @@
+# Segredos do docker-compose (ver .env.example)
+.env
+!.env.example
+
+# Redis dump gerado ao rodar redis-server localmente durante o desenvolvimento
+*.rdb
