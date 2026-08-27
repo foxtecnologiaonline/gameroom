@@ -4,15 +4,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 import { Prisma, StatusPedido, StatusProduto } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { EstoqueService } from '../estoque/estoque.service';
-import {
-  QUEUE_RESERVAS,
-  JOB_LIBERAR_RESERVA_EXPIRADA,
-} from '../jobs/queues.constants';
+import { JobsPublisherService } from '../jobs/jobs-publisher.service';
 import { CriarPedidoDto } from './dto/criar-pedido.dto';
 import { ListarPedidosQueryDto } from './dto/listar-pedidos-query.dto';
 import { paginar } from '../common/pagination/pagination.dto';
@@ -25,7 +20,7 @@ export class PedidosService {
     private readonly prisma: PrismaService,
     private readonly estoqueService: EstoqueService,
     private readonly config: ConfigService,
-    @InjectQueue(QUEUE_RESERVAS) private readonly reservasQueue: Queue,
+    private readonly jobsPublisher: JobsPublisherService,
   ) {
     const minutos = Number(
       this.config.get<string>('RESERVA_EXPIRACAO_MINUTOS') ?? 15,
@@ -107,13 +102,9 @@ export class PedidosService {
 
     await Promise.all(
       itensParaAgendarExpiracao.map((itemPedidoId) =>
-        this.reservasQueue.add(
-          JOB_LIBERAR_RESERVA_EXPIRADA,
-          { itemPedidoId },
-          {
-            delay: this.reservaExpiracaoMs,
-            jobId: `${JOB_LIBERAR_RESERVA_EXPIRADA}-${itemPedidoId}`,
-          },
+        this.jobsPublisher.agendarLiberarReservaExpirada(
+          itemPedidoId,
+          this.reservaExpiracaoMs,
         ),
       ),
     );

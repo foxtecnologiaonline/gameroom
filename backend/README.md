@@ -14,18 +14,24 @@ Implementação completa das **Fases 1, 2 e 3** da especificação técnica v2 (
 - **Fase 3**: antifraude (rate limiting + fila de retenção de pedidos de
   risco), observabilidade (request id de correlação + log estruturado por
   requisição), integração de nota fiscal (ponto plugável) e testes
-  automatizados de concorrência/idempotência contra Postgres/Redis reais.
+  automatizados de concorrência/idempotência contra Postgres real.
 
 ## Stack
 
-NestJS + TypeScript, Prisma (PostgreSQL 15+), BullMQ + Redis, JWT (admin/cliente),
-AES-256-GCM para cifrar códigos de licença em repouso.
+NestJS + TypeScript, Prisma (PostgreSQL 15+), Upstash QStash (fila de jobs
+assíncronos via HTTP — sem Redis/worker persistente, pensado para rodar em
+serverless), JWT (admin/cliente), AES-256-GCM para cifrar códigos de licença
+em repouso.
 
 ## Setup local
 
 ```bash
+# fila de jobs (fica rodando; ver a saída para a porta e as chaves de dev)
+npx @upstash/qstash-cli dev
+
 npm install
-cp .env.example .env   # ajuste DATABASE_URL, REDIS_HOST/PORT e os segredos
+cp .env.example .env   # ajuste DATABASE_URL, QSTASH_* (chaves de dev do
+                        # comando acima) e os segredos
 
 # gerar uma chave válida para CODIGO_ENCRYPTION_KEY (32 bytes em base64):
 openssl rand -base64 32
@@ -36,7 +42,8 @@ ADMIN_SEED_EMAIL=admin@exemplo.com ADMIN_SEED_SENHA="senha-forte" npx prisma db 
 npm run start:dev
 ```
 
-Requer PostgreSQL e Redis rodando e acessíveis pelas variáveis de ambiente do `.env`.
+Requer PostgreSQL rodando e o `qstash-cli dev` de pé, acessíveis pelas
+variáveis de ambiente do `.env`.
 
 ## Por que existe um seed de admin
 
@@ -113,9 +120,20 @@ verificação nativa do SDK do gateway escolhido (Stripe/Mercado Pago/PagSeguro)
 
 Ponto de integração plugável (`NotaFiscalProvider`, mesmo padrão do
 `EmailProvider`/`RefundGateway`) — em produção, trocar pela integração real
-(ex.: NFE.io). Emitida automaticamente pelo job `emitir-nota-fiscal` após a
-confirmação do pagamento (ou após a liberação de um pedido retido por
-fraude); idempotente via `pedidos.notaFiscalId`.
+(ex.: NFE.io). Emitida automaticamente pelo job `POST
+/jobs/nota-fiscal/emitir-nota-fiscal` após a confirmação do pagamento (ou
+após a liberação de um pedido retido por fraude); idempotente via
+`pedidos.notaFiscalId`.
+
+## Jobs assíncronos
+
+Cada job antes consumido por um worker BullMQ agora é uma rota HTTP em
+`backend/src/jobs/http/*.controller.ts`, protegida por
+`QstashSignatureGuard` (só aceita chamadas assinadas pelo QStash). Quem
+publica os jobs é `JobsPublisherService` (`backend/src/jobs/`), injetado
+pelos serviços de domínio no lugar do antigo `@InjectQueue`. O job periódico
+de reabastecimento (antes um scheduler BullMQ) é uma **QStash Schedule**
+provisionada uma vez fora do código — ver `DEPLOY.md`.
 
 ## Observabilidade (Fase 3)
 
@@ -130,13 +148,14 @@ estoque) já usavam `Logger.error` desde as fases anteriores.
 
 ```bash
 npm test                                  # unitários
-npx jest --config ./test/jest-e2e.json    # e2e + concorrência (requer Postgres/Redis reais)
+npx jest --config ./test/jest-e2e.json    # e2e + concorrência (requer Postgres real)
 ```
 
-Os unitários cobrem cifragem/decifragem de código e verificação de assinatura
-de webhook. Os testes e2e incluem uma suíte dedicada de concorrência/idempotência
-(`test/concorrencia.e2e-spec.ts`) que roda contra Postgres/Redis reais (sem
-mocks) e cobre: reserva concorrente sob disputa de estoque (SKIP LOCKED),
+Os unitários cobrem cifragem/decifragem de código, verificação de assinatura
+de webhook e a guarda de assinatura do QStash. Os testes e2e incluem uma
+suíte dedicada de concorrência/idempotência (`test/concorrencia.e2e-spec.ts`)
+que roda contra Postgres real (sem mocks) e cobre: reserva concorrente sob
+disputa de estoque (SKIP LOCKED),
 idempotência do webhook sob entrega concorrente, reabastecimento concorrente
 sem duplicar o lote, e reaproveitamento de uma unidade cancelada em uma venda
 futura. Essa última suíte já pegou dois bugs reais durante o desenvolvimento

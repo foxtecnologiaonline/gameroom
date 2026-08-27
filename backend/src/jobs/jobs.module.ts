@@ -1,33 +1,35 @@
 import { Module } from '@nestjs/common';
-import { QueuesModule } from './queues.module';
+import { QstashClientModule } from './qstash-client.module';
 import { EstoqueModule } from '../estoque/estoque.module';
 import { ConteudoModule } from '../conteudo/conteudo.module';
 import { EmailModule } from '../email/email.module';
 import { RefundModule } from '../refund/refund.module';
 import { NotaFiscalModule } from '../nota-fiscal/nota-fiscal.module';
-import { EstoqueProcessor } from './processors/estoque.processor';
-import { ReservasProcessor } from './processors/reservas.processor';
-import { EmissaoProcessor } from './processors/emissao.processor';
-import { DevolucaoProcessor } from './processors/devolucao.processor';
-import { NotaFiscalProcessor } from './processors/nota-fiscal.processor';
-import { EstoqueScheduler } from './estoque.scheduler';
+import { QstashSignatureGuard } from './qstash-signature.guard';
+import { EstoqueJobsController } from './http/estoque-jobs.controller';
+import { ReservasJobsController } from './http/reservas-jobs.controller';
+import { EmissaoJobsController } from './http/emissao-jobs.controller';
+import { DevolucaoJobsController } from './http/devolucao-jobs.controller';
+import { NotaFiscalJobsController } from './http/nota-fiscal-jobs.controller';
+import { FalhasJobsController } from './http/falhas-jobs.controller';
 
 @Module({
   imports: [
-    QueuesModule,
+    QstashClientModule,
     EstoqueModule,
     ConteudoModule,
     EmailModule,
     RefundModule,
     NotaFiscalModule,
   ],
-  providers: [
-    EstoqueProcessor,
-    ReservasProcessor,
-    EmissaoProcessor,
-    DevolucaoProcessor,
-    NotaFiscalProcessor,
-    EstoqueScheduler,
+  controllers: [
+    EstoqueJobsController,
+    ReservasJobsController,
+    EmissaoJobsController,
+    DevolucaoJobsController,
+    NotaFiscalJobsController,
+    FalhasJobsController,
   ],
+  providers: [QstashSignatureGuard],
 })
 export class JobsModule {}

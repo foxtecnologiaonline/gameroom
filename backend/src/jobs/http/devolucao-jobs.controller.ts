@@ -1,6 +1,11 @@
-import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
-import { Inject, Logger } from '@nestjs/common';
-import { Job } from 'bullmq';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  Inject,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { StatusDevolucao } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { EmailService } from '../../email/email.service';
@@ -8,47 +13,39 @@ import {
   REFUND_GATEWAY,
   RefundGateway,
 } from '../../refund/refund-gateway.interface';
-import {
-  ProcessarDevolucaoJobData,
-  QUEUE_DEVOLUCOES,
-} from '../queues.constants';
+import { QstashSignatureGuard } from '../qstash-signature.guard';
+import { ProcessarDevolucaoJobDto } from '../dto/job-payloads.dto';
 
-@Processor(QUEUE_DEVOLUCOES)
-export class DevolucaoProcessor extends WorkerHost {
-  private readonly logger = new Logger(DevolucaoProcessor.name);
-
+/** Corpo é o mesmo do antigo DevolucaoProcessor.process(). */
+@Controller('jobs/devolucoes')
+@UseGuards(QstashSignatureGuard)
+export class DevolucaoJobsController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
     @Inject(REFUND_GATEWAY) private readonly refundGateway: RefundGateway,
-  ) {
-    super();
-  }
+  ) {}
 
-  async process(job: Job<ProcessarDevolucaoJobData>): Promise<void> {
-    const { devolucaoId } = job.data;
-
+  @Post('processar-devolucao')
+  @HttpCode(200)
+  async processarDevolucao(
+    @Body() dto: ProcessarDevolucaoJobDto,
+  ): Promise<void> {
     const devolucao = await this.prisma.devolucao.findUnique({
-      where: { id: devolucaoId },
+      where: { id: dto.devolucaoId },
       include: { itemPedido: { include: { pedido: true, produto: true } } },
     });
     if (!devolucao) {
-      this.logger.warn(
-        `Devolução ${devolucaoId} não encontrada — job descartado`,
-      );
       return;
     }
     if (devolucao.processadoEm) {
-      // Idempotente: reentrega do job não solicita um segundo estorno.
+      // Idempotente: reentrega não solicita um segundo estorno.
       return;
     }
     if (
       devolucao.status !== StatusDevolucao.aprovada_automatica &&
       devolucao.status !== StatusDevolucao.aprovada_manual
     ) {
-      this.logger.warn(
-        `Devolução ${devolucaoId} não está aprovada (status: ${devolucao.status}) — job descartado`,
-      );
       return;
     }
 
@@ -69,15 +66,5 @@ export class DevolucaoProcessor extends WorkerHost {
       destinatario: devolucao.itemPedido.pedido.compradorEmail,
       produtoNome: devolucao.itemPedido.produto.nome,
     });
-  }
-
-  @OnWorkerEvent('failed')
-  onFailed(job: Job, error: Error) {
-    const esgotouTentativas = job.attemptsMade >= (job.opts.attempts ?? 1);
-    if (esgotouTentativas) {
-      this.logger.error(
-        `ALERTA CRÍTICO: estorno da devolução ${job.data?.devolucaoId} falhou após todas as tentativas — cliente devolveu mas não foi reembolsado. Erro: ${error.message}`,
-      );
-    }
   }
 }

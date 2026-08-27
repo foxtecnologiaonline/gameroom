@@ -10,7 +10,7 @@ entrega → estoque → devolução.
   especificação técnica completa (modelo de dados, regras de negócio,
   endpoints, jobs assíncronos).
 - [`backend/`](backend/README.md) — API NestJS + Prisma/PostgreSQL +
-  BullMQ/Redis. Implementa as três fases da especificação: produtos/estoque/
+  Upstash QStash (fila via HTTP). Implementa as três fases da especificação: produtos/estoque/
   checkout/pagamento/emissão (Fase 1), devoluções/área do cliente/painel
   admin (Fase 2), antifraude/observabilidade/nota fiscal/testes de
   concorrência (Fase 3).
@@ -29,8 +29,8 @@ docker compose up --build
 ```
 
 Sem Docker, ver as instruções de setup em `backend/README.md` e
-`frontend/README.md` (cada um roda com `npm run dev`, requer Postgres e Redis
-locais para o backend).
+`frontend/README.md` (cada um roda com `npm run dev`, requer Postgres local e
+o `npx @upstash/qstash-cli dev` de pé para o backend).
 
 ## Decisões de design que valem a leitura antes de mexer no código
 

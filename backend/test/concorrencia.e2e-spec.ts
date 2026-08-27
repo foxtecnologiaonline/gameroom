@@ -8,11 +8,19 @@ import { PedidosService } from '../src/pedidos/pedidos.service';
 import { EstoqueService } from '../src/estoque/estoque.service';
 
 /**
- * Testes de concorrência/idempotência contra Postgres e Redis reais (não
- * mockados) — são exatamente os caminhos que o desenvolvimento manual desta
- * plataforma revelou como propensos a bugs sutis de modelagem/race condition
- * (ver commit da Fase 1: unique constraint que impedia reaproveitar unidade
+ * Testes de concorrência/idempotência contra Postgres real (não mockado) —
+ * são exatamente os caminhos que o desenvolvimento manual desta plataforma
+ * revelou como propensos a bugs sutis de modelagem/race condition (ver
+ * commit da Fase 1: unique constraint que impedia reaproveitar unidade
  * devolvida). Cobre §9 da especificação técnica v2.
+ *
+ * Como `PedidosService.criar` e o webhook de pagamento publicam jobs de
+ * verdade no QStash (`JobsPublisherService`), rodar esta suíte exige
+ * `QSTASH_URL`/`QSTASH_TOKEN`/`QSTASH_CURRENT_SIGNING_KEY`/
+ * `QSTASH_NEXT_SIGNING_KEY` apontando para um QStash alcançável (o
+ * `npx @upstash/qstash-cli dev` local é suficiente) — sem isso, a
+ * publicação falha e as chamadas testadas aqui lançam exceção mesmo com o
+ * estado do banco correto.
  */
 describe('Concorrência e idempotência (e2e)', () => {
   let app: INestApplication;

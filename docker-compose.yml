@@ -15,16 +15,6 @@ services:
       timeout: 5s
       retries: 10
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   backend:
     build:
       context: ./backend
@@ -34,8 +24,18 @@ services:
       # Supabase, DATABASE_URL aponta para o pooler (porta 6543) e DIRECT_URL
       # para a conexão direta (porta 5432) — migrations exigem conexão direta.
       DIRECT_URL: postgresql://gameroom:${POSTGRES_PASSWORD:-gameroom_dev}@postgres:5432/gameroom?schema=public
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
+      # Fila de jobs: QStash (HTTP), não Redis/BullMQ — ver README/DEPLOY.md
+      # para rodar `npx @upstash/qstash-cli dev` no host antes de subir o
+      # compose. QSTASH_URL aponta para esse servidor local (host, não
+      # container — por isso host.docker.internal, ver extra_hosts abaixo).
+      QSTASH_URL: ${QSTASH_URL:-http://host.docker.internal:8080}
+      QSTASH_TOKEN: ${QSTASH_TOKEN:-}
+      QSTASH_CURRENT_SIGNING_KEY: ${QSTASH_CURRENT_SIGNING_KEY:-}
+      QSTASH_NEXT_SIGNING_KEY: ${QSTASH_NEXT_SIGNING_KEY:-}
+      # URL pela qual o QStash (rodando no host) alcança este backend. Como a
+      # porta 3000 já é publicada para o host (ver `ports` abaixo), localhost
+      # funciona mesmo o backend rodando dentro do container.
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:3000}
       JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?defina JWT_ACCESS_SECRET no .env}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?defina JWT_REFRESH_SECRET no .env}
       JWT_ACCESS_EXPIRES_IN: 15m
@@ -51,10 +51,10 @@ services:
       PORT: 3000
     ports:
       - "3000:3000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
 
   frontend:

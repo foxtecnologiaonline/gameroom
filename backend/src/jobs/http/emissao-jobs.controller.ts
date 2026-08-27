@@ -1,6 +1,4 @@
-import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
-import { Logger } from '@nestjs/common';
-import { Job } from 'bullmq';
+import { Body, Controller, HttpCode, Post, UseGuards } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { StatusPedido } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -8,43 +6,38 @@ import { EncryptionService } from '../../common/crypto/encryption.service';
 import { EstoqueService } from '../../estoque/estoque.service';
 import { ConteudoService } from '../../conteudo/conteudo.service';
 import { EmailService } from '../../email/email.service';
-import { EmitirEEntregarJobData, QUEUE_EMISSAO } from '../queues.constants';
+import { QstashSignatureGuard } from '../qstash-signature.guard';
+import { EmitirEEntregarJobDto } from '../dto/job-payloads.dto';
 
-@Processor(QUEUE_EMISSAO)
-export class EmissaoProcessor extends WorkerHost {
-  private readonly logger = new Logger(EmissaoProcessor.name);
-
+/** Corpo é o mesmo do antigo EmissaoProcessor.process(). */
+@Controller('jobs/emissao')
+@UseGuards(QstashSignatureGuard)
+export class EmissaoJobsController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly estoqueService: EstoqueService,
     private readonly conteudoService: ConteudoService,
     private readonly emailService: EmailService,
     private readonly encryption: EncryptionService,
-  ) {
-    super();
-  }
+  ) {}
 
-  async process(job: Job<EmitirEEntregarJobData>): Promise<void> {
-    const { itemPedidoId } = job.data;
-
+  @Post('emitir-e-entregar')
+  @HttpCode(200)
+  async emitirEEntregar(@Body() dto: EmitirEEntregarJobDto): Promise<void> {
     const item = await this.prisma.itemPedido.findUnique({
-      where: { id: itemPedidoId },
+      where: { id: dto.itemPedidoId },
       include: { pedido: true, produto: { include: { conteudos: true } } },
     });
     if (!item) {
-      this.logger.warn(
-        `Item de pedido ${itemPedidoId} não encontrado — job descartado`,
-      );
+      // Nada a fazer — não relança (relançar faria o QStash tentar de novo à toa).
       return;
     }
     if (item.emitidoEm) {
-      // Idempotente: reentrega do job (retry ou webhook duplicado) não reenvia e-mail.
+      // Idempotente: reentrega (retry ou webhook duplicado) não reenvia e-mail.
       return;
     }
     if (item.pedido.status !== StatusPedido.confirmado) {
-      this.logger.warn(
-        `Item ${itemPedidoId} ainda não está com pedido confirmado — job será reprocessado`,
-      );
+      // Pedido ainda não confirmado — lança pra o QStash tentar de novo.
       throw new Error('Pedido ainda não confirmado');
     }
 
@@ -89,15 +82,5 @@ export class EmissaoProcessor extends WorkerHost {
       },
     });
     return token;
-  }
-
-  @OnWorkerEvent('failed')
-  onFailed(job: Job, error: Error) {
-    const esgotouTentativas = job.attemptsMade >= (job.opts.attempts ?? 1);
-    if (esgotouTentativas) {
-      this.logger.error(
-        `ALERTA CRÍTICO: emissão do item ${job.data?.itemPedidoId} falhou após todas as tentativas — pedido pago sem entrega. Erro: ${error.message}`,
-      );
-    }
   }
 }

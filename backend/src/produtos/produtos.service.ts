@@ -3,18 +3,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 import { Produto, StatusProduto, StatusUnidade } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
 import {
   PaginationQueryDto,
   paginar,
 } from '../common/pagination/pagination.dto';
-import {
-  QUEUE_ESTOQUE,
-  JOB_GERAR_ESTOQUE_INICIAL,
-} from '../jobs/queues.constants';
+import { JobsPublisherService } from '../jobs/jobs-publisher.service';
 import { CriarProdutoDto } from './dto/criar-produto.dto';
 import { AtualizarProdutoDto } from './dto/atualizar-produto.dto';
 
@@ -22,7 +17,7 @@ import { AtualizarProdutoDto } from './dto/atualizar-produto.dto';
 export class ProdutosService {
   constructor(
     private readonly prisma: PrismaService,
-    @InjectQueue(QUEUE_ESTOQUE) private readonly estoqueQueue: Queue,
+    private readonly jobsPublisher: JobsPublisherService,
   ) {}
 
   async criar(dto: CriarProdutoDto): Promise<Produto> {
@@ -50,10 +45,9 @@ export class ProdutosService {
     });
 
     if (tipoEstoque === 'serializado') {
-      await this.estoqueQueue.add(
-        JOB_GERAR_ESTOQUE_INICIAL,
-        { produtoId: produto.id, quantidade: estoqueLotePadrao },
-        { jobId: `${JOB_GERAR_ESTOQUE_INICIAL}-${produto.id}` },
+      await this.jobsPublisher.enfileirarGerarEstoqueInicial(
+        produto.id,
+        estoqueLotePadrao,
       );
     }
 

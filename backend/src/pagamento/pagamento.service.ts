@@ -4,20 +4,11 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 import { StatusPedido, StatusUnidade } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { EstoqueService } from '../estoque/estoque.service';
 import { FraudeService } from '../fraude/fraude.service';
-import {
-  QUEUE_EMISSAO,
-  QUEUE_ESTOQUE,
-  QUEUE_NOTA_FISCAL,
-  JOB_EMITIR_E_ENTREGAR,
-  JOB_REABASTECER_ESTOQUE,
-  JOB_EMITIR_NOTA_FISCAL,
-} from '../jobs/queues.constants';
+import { JobsPublisherService } from '../jobs/jobs-publisher.service';
 import { WebhookPagamentoDto } from './dto/webhook-pagamento.dto';
 
 @Injectable()
@@ -28,9 +19,7 @@ export class PagamentoService {
     private readonly prisma: PrismaService,
     private readonly estoqueService: EstoqueService,
     private readonly fraudeService: FraudeService,
-    @InjectQueue(QUEUE_EMISSAO) private readonly emissaoQueue: Queue,
-    @InjectQueue(QUEUE_ESTOQUE) private readonly estoqueQueue: Queue,
-    @InjectQueue(QUEUE_NOTA_FISCAL) private readonly notaFiscalQueue: Queue,
+    private readonly jobsPublisher: JobsPublisherService,
   ) {}
 
   async processarWebhook(dto: WebhookPagamentoDto): Promise<void> {
@@ -55,11 +44,7 @@ export class PagamentoService {
     );
     if (!retidoPorFraude) {
       await this.reenfileirarEmissoesPendentes(dto.pedidoId);
-      await this.notaFiscalQueue.add(
-        JOB_EMITIR_NOTA_FISCAL,
-        { pedidoId: dto.pedidoId },
-        { jobId: `${JOB_EMITIR_NOTA_FISCAL}-${dto.pedidoId}` },
-      );
+      await this.jobsPublisher.enfileirarNotaFiscal(dto.pedidoId);
     }
 
     await this.dispararReabastecimento(dto.pedidoId);
@@ -163,13 +148,7 @@ export class PagamentoService {
     }
     const pendentes = pedido.itens.filter((item) => !item.emitidoEm);
     await Promise.all(
-      pendentes.map((item) =>
-        this.emissaoQueue.add(
-          JOB_EMITIR_E_ENTREGAR,
-          { itemPedidoId: item.id },
-          { jobId: `${JOB_EMITIR_E_ENTREGAR}-${item.id}` },
-        ),
-      ),
+      pendentes.map((item) => this.jobsPublisher.enfileirarEmissao(item.id)),
     );
   }
 
@@ -187,7 +166,7 @@ export class PagamentoService {
     ];
     await Promise.all(
       produtoIds.map((produtoId) =>
-        this.estoqueQueue.add(JOB_REABASTECER_ESTOQUE, { produtoId }),
+        this.jobsPublisher.enfileirarReabastecimento(produtoId),
       ),
     );
   }

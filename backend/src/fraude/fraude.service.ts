@@ -5,8 +5,6 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 import {
   StatusDevolucao,
   StatusPedido,
@@ -20,12 +18,7 @@ import {
   REFUND_GATEWAY,
   RefundGateway,
 } from '../refund/refund-gateway.interface';
-import {
-  QUEUE_EMISSAO,
-  QUEUE_NOTA_FISCAL,
-  JOB_EMITIR_E_ENTREGAR,
-  JOB_EMITIR_NOTA_FISCAL,
-} from '../jobs/queues.constants';
+import { JobsPublisherService } from '../jobs/jobs-publisher.service';
 import {
   PaginationQueryDto,
   paginar,
@@ -44,8 +37,7 @@ export class FraudeService {
     private readonly auditoria: AuditoriaService,
     private readonly emailService: EmailService,
     @Inject(REFUND_GATEWAY) private readonly refundGateway: RefundGateway,
-    @InjectQueue(QUEUE_EMISSAO) private readonly emissaoQueue: Queue,
-    @InjectQueue(QUEUE_NOTA_FISCAL) private readonly notaFiscalQueue: Queue,
+    private readonly jobsPublisher: JobsPublisherService,
   ) {}
 
   /**
@@ -162,20 +154,10 @@ export class FraudeService {
 
     const pendentes = itens.filter((item) => !item.emitidoEm);
     await Promise.all(
-      pendentes.map((item) =>
-        this.emissaoQueue.add(
-          JOB_EMITIR_E_ENTREGAR,
-          { itemPedidoId: item.id },
-          { jobId: `${JOB_EMITIR_E_ENTREGAR}-${item.id}` },
-        ),
-      ),
+      pendentes.map((item) => this.jobsPublisher.enfileirarEmissao(item.id)),
     );
 
-    await this.notaFiscalQueue.add(
-      JOB_EMITIR_NOTA_FISCAL,
-      { pedidoId },
-      { jobId: `${JOB_EMITIR_NOTA_FISCAL}-${pedidoId}` },
-    );
+    await this.jobsPublisher.enfileirarNotaFiscal(pedidoId);
 
     await this.auditoria.registrar({
       usuarioId: adminId,

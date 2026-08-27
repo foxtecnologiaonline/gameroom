@@ -1,7 +1,6 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { BullModule } from '@nestjs/bullmq';
+import { ConfigModule } from '@nestjs/config';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { CryptoModule } from './common/crypto/crypto.module';
@@ -26,33 +25,6 @@ import { HealthController } from './health.controller';
     ConfigModule.forRoot({ isGlobal: true }),
     ThrottlerModule.forRoot({
       throttlers: [{ name: 'default', ttl: 60_000, limit: 60 }],
-    }),
-    BullModule.forRootAsync({
-      inject: [ConfigService],
-      useFactory: (config: ConfigService) => {
-        const redisUrl = config.get<string>('REDIS_URL');
-        if (redisUrl) {
-          const { hostname, port, username, password, protocol } = new URL(
-            redisUrl,
-          );
-          return {
-            connection: {
-              host: hostname,
-              port: Number(port || 6379),
-              username: username || undefined,
-              password: password || undefined,
-              tls: protocol === 'rediss:' ? {} : undefined,
-            },
-          };
-        }
-        return {
-          connection: {
-            host: config.get<string>('REDIS_HOST', 'localhost'),
-            port: Number(config.get<string>('REDIS_PORT', '6379')),
-            password: config.get<string>('REDIS_PASSWORD') || undefined,
-          },
-        };
-      },
     }),
     PrismaModule,
     CryptoModule,

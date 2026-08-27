@@ -4,16 +4,11 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 import { StatusDevolucao, StatusPedido, StatusUnidade } from '@prisma/client';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { AuditoriaService } from '../auditoria/auditoria.service';
 import { EmailService } from '../email/email.service';
-import {
-  QUEUE_DEVOLUCOES,
-  JOB_PROCESSAR_DEVOLUCAO,
-} from '../jobs/queues.constants';
+import { JobsPublisherService } from '../jobs/jobs-publisher.service';
 import {
   PaginationQueryDto,
   paginar,
@@ -28,7 +23,7 @@ export class DevolucoesService {
     private readonly prisma: PrismaService,
     private readonly auditoria: AuditoriaService,
     private readonly emailService: EmailService,
-    @InjectQueue(QUEUE_DEVOLUCOES) private readonly devolucoesQueue: Queue,
+    private readonly jobsPublisher: JobsPublisherService,
   ) {}
 
   async solicitar(
@@ -117,7 +112,7 @@ export class DevolucoesService {
         data: { status: StatusUnidade.bloqueado },
       });
     }
-    await this.devolucoesQueue.add(JOB_PROCESSAR_DEVOLUCAO, { devolucaoId });
+    await this.jobsPublisher.enfileirarProcessarDevolucao(devolucaoId);
   }
 
   async decidirManualmente(

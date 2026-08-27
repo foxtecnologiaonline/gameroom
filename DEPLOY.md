@@ -8,15 +8,26 @@ credenciais e infraestrutura que este repositório não define, propositalmente
 
 ## 1. Rodando com Docker Compose
 
-Sobe Postgres, Redis, backend (NestJS) e frontend (Next.js) com um único
-comando — pensado para demonstrar/homologar a plataforma completa, não para
-produção (ver seção 2 sobre o que muda para produção).
+Sobe Postgres, backend (NestJS) e frontend (Next.js) com um único comando —
+pensado para demonstrar/homologar a plataforma completa, não para produção
+(ver seção 2 sobre o que muda para produção). A fila de jobs assíncronos é o
+QStash (HTTP) — em produção é o serviço real da Upstash; localmente, roda um
+servidor de desenvolvimento em outro processo (não é mais um serviço no
+compose, porque baixa um binário próprio no primeiro uso):
 
 ```bash
+# terminal 1 — servidor de dev do QStash (fica rodando; imprime as chaves de
+# assinatura de dev e a porta ao iniciar — confirme a porta no output e
+# ajuste QSTASH_URL no .env se vier diferente de 8080)
+npx @upstash/qstash-cli dev
+
 cp .env.example .env
 # edite o .env: gere os segredos indicados (openssl rand -base64 32 para
-# CODIGO_ENCRYPTION_KEY, e valores fortes para os *_SECRET)
+# CODIGO_ENCRYPTION_KEY, valores fortes para os *_SECRET, e as chaves de dev
+# que o qstash-cli dev imprimiu para QSTASH_TOKEN/QSTASH_CURRENT_SIGNING_KEY/
+# QSTASH_NEXT_SIGNING_KEY)
 
+# terminal 2
 docker compose up --build
 
 # em outro terminal, após os containers subirem, crie o admin inicial:
@@ -55,7 +66,7 @@ desenvolvimento inseguros ou simulados:
 | Item | O que fazer |
 |---|---|
 | Banco de dados | Postgres gerenciado (RDS, Cloud SQL, Neon, Supabase, etc.), não o container do compose. **Com Supabase**: use a *connection pooling string* (porta `6543`, com `?pgbouncer=true` no final) em `DATABASE_URL`, e a *direct connection* (porta `5432`) em `DIRECT_URL` — migrations não funcionam através do pooler transacional |
-| Redis | Redis gerenciado (ElastiCache, Upstash, etc.) |
+| Fila de jobs | Conta Upstash real (não o `qstash-cli dev`) — `QSTASH_TOKEN`/`QSTASH_CURRENT_SIGNING_KEY`/`QSTASH_NEXT_SIGNING_KEY` do console.upstash.com/qstash; `APP_BASE_URL` apontando para o domínio público do backend (não `localhost`) |
 | Segredos | `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `CODIGO_ENCRYPTION_KEY`, `PAGAMENTO_WEBHOOK_SECRET` gerados com `openssl rand -base64 32` e guardados num secrets manager — nunca commitados |
 | Armazenamento de conteúdo | *(v2.0 — não bloqueia o deploy do MVP)* Bucket S3 real (ou compatível) com as credenciais em `S3_*` |
 | Gateway de pagamento | Trocar a verificação genérica em `backend/src/pagamento/webhook-signature.util.ts` pela verificação nativa do SDK do gateway escolhido (Stripe/Mercado Pago/PagSeguro); **remover ou proteger adicionalmente** o endpoint de simulação (`POST /webhooks/pagamento/simular/:id`) — hoje ele só exige login de admin, o que é aceitável para homologação mas vale reavaliar em produção |
@@ -76,8 +87,10 @@ no módulo correspondente, sem tocar no resto do sistema.
 Este repositório não está amarrado a nenhum provedor. Algumas combinações
 comuns:
 
-- **Simples**: backend + Postgres + Redis num provedor com deploy por Docker
-  (Railway, Render, Fly.io); frontend na Vercel (Next.js nativo lá).
+- **Simples**: backend + Postgres num provedor com deploy por Docker
+  (Railway, Render, Fly.io); frontend na Vercel (Next.js nativo lá). Nesse
+  caminho o `Dockerfile` do backend continua valendo como está (o `CMD`
+  roda migrations no boot do container).
 - **Containers próprios**: as imagens de `backend/Dockerfile` e
   `frontend/Dockerfile` já buildam standalone — sobem em qualquer orquestrador
   (ECS, Cloud Run, Kubernetes) sem alteração.
@@ -85,44 +98,67 @@ comuns:
   reverse proxy (Caddy/Nginx) para TLS — troque só os serviços gerenciados
   (banco, fila) se quiser mais resiliência que containers no mesmo host.
 
-### Stack escolhida para o MVP: Vercel (frontend) + Railway (backend) + Supabase (banco)
+### Stack escolhida para o MVP: 100% Vercel (frontend + backend) + Supabase (banco) + QStash (fila)
 
-A Vercel é serverless (sem processo persistente) e por isso **não roda o
-backend** — ele depende de um worker BullMQ sempre de pé para os jobs
-assíncronos (emissão, expiração de reserva, reabastecimento, devolução). Só o
-frontend Next.js vai na Vercel; o backend + Redis vão na Railway.
+A Vercel é serverless (sem processo persistente), então a fila de jobs não
+pode mais ser BullMQ+Redis (que dependia de um worker sempre de pé). O
+backend foi migrado para publicar cada job assíncrono (emissão, expiração de
+reserva, reabastecimento, devolução, nota fiscal) como uma mensagem HTTP no
+**Upstash QStash**, que chama de volta uma rota do próprio backend quando o
+job deve rodar — sem Redis, sem worker persistente. Ver
+`docs/especificacao-tecnica-v2.md` § "Decisões de escopo do MVP" e o código
+em `backend/src/jobs/` para o desenho completo.
 
-**No Railway:**
-1. New Project → Deploy from GitHub repo → aponte para este repositório.
-2. Configure o serviço do backend com **root directory `backend/`** (é onde
-   está o `Dockerfile`) — o Railway detecta e builda a imagem sozinho.
-3. Adicione um serviço **Redis** pelo template do próprio Railway (New →
-   Database → Redis). Ele expõe automaticamente a variável `REDIS_URL` —
-   basta referenciá-la (`${{Redis.REDIS_URL}}`) nas env vars do serviço do
-   backend; o código já sabe ler `REDIS_URL` (com usuário/senha/TLS
-   embutidos).
-4. Defina as env vars do backend (Settings → Variables):
+A Vercel tem suporte nativo a NestJS (detecta `src/main.ts` e roda a app
+como está, sem precisar de um adapter serverless manual) — por isso backend
+e frontend são **dois projetos Vercel separados** apontando para o mesmo
+repositório, cada um com seu próprio Root Directory.
+
+**Passo a passo:**
+1. **Upstash**: crie uma conta (gratuita) em upstash.com (ou pelo próprio
+   Vercel Marketplace/Integrations — o painel da Vercel oferece Upstash como
+   integração de um clique, o que já injeta as env vars no projeto). Crie
+   uma fila QStash e copie `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY` e
+   `QSTASH_NEXT_SIGNING_KEY` do console (console.upstash.com/qstash).
+2. **Projeto Vercel do backend**: New Project → importe este repositório →
+   **Root Directory = `backend`**. Defina as env vars (Project Settings →
+   Environment Variables):
    - `DATABASE_URL` — connection pooling string do Supabase (porta `6543`,
      com `?pgbouncer=true` no final)
    - `DIRECT_URL` — direct connection do Supabase (porta `5432`)
-   - `REDIS_URL` — `${{Redis.REDIS_URL}}` (referência ao serviço Redis do
-     passo 3)
+   - `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`
+     — do passo 1 (deixe `QSTASH_URL` vazio — só é usado em dev local)
+   - `APP_BASE_URL` — a URL pública deste mesmo projeto backend na Vercel
+     (ex.: `https://gameroom-backend.vercel.app`) — precisa ser preenchida
+     **depois do primeiro deploy**, quando o domínio existir, e então
+     redeployada
    - `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `CODIGO_ENCRYPTION_KEY`,
      `PAGAMENTO_WEBHOOK_SECRET` — gerados com `openssl rand -base64 32`
    - `RESERVA_EXPIRACAO_MINUTOS=15`
-   - O Railway injeta `PORT` sozinho — o backend já escuta
-     `process.env.PORT` (`src/main.ts`), não precisa definir.
-5. Deploy. O `Dockerfile` já roda `prisma migrate deploy` a cada boot — a
-   primeira subida cria o schema inteiro no Supabase automaticamente.
-6. Depois do primeiro deploy com sucesso, crie o admin: no shell do Railway
-   (Settings → botão de shell do serviço, ou `railway run`), rode
-   `ADMIN_SEED_EMAIL=... ADMIN_SEED_SENHA=... npx prisma db seed`.
+   - `package.json` já tem o script `vercel-build` (`prisma generate &&
+     prisma migrate deploy && nest build`) — a Vercel usa esse script
+     automaticamente no lugar de `build`, então as migrations rodam durante
+     o build, não a cada requisição
+3. **QStash Schedule** (substitui o antigo scheduler de 5 min do BullMQ):
+   depois do primeiro deploy do backend, crie uma schedule apontando para
+   `https://<seu-backend>.vercel.app/jobs/estoque/verificar-reabastecimento`
+   com cron `*/5 * * * *` — pelo console da Upstash ou via
+   `client.schedules.create(...)` do SDK (não é criado automaticamente pelo
+   código; é um recurso provisionado uma vez, fora do deploy).
+4. **Projeto Vercel do frontend** (já existe): aponte `NEXT_PUBLIC_API_URL`
+   para a URL do projeto backend do passo 2 e faça redeploy — essa variável
+   é embutida no bundle em build time.
+5. **No backend**, depois que a URL do frontend for definitiva, restringir o
+   CORS (`app.enableCors()` em `src/main.ts`, hoje aberto) a essa origem —
+   ver linha "Backend" na tabela acima.
+6. Crie o admin inicial rodando `ADMIN_SEED_EMAIL=... ADMIN_SEED_SENHA=...
+   npx prisma db seed` a partir de uma máquina com a `DATABASE_URL` de
+   produção configurada (a Vercel não expõe shell interativo no projeto).
 
-**Na Vercel**, aponte `NEXT_PUBLIC_API_URL` para a URL pública que o Railway
-gerar para o backend (ex.: `https://gameroom-backend.up.railway.app`) e
-faça redeploy do frontend — essa variável é embutida no bundle em build
-time, então só funciona depois de configurada e re-buildada.
-
-**No backend**, depois que a URL da Vercel for definitiva, restringir o CORS
-(`app.enableCors()` em `src/main.ts`, hoje aberto) a essa origem — ver linha
-"Backend" na tabela acima.
+**Risco a validar cedo, antes de confiar 100% neste caminho**: o backend usa
+`rawBody: true` (para verificar assinatura do webhook de pagamento e do
+QStash) — isso precisa ser confirmado funcionando sob o proxy zero-config da
+Vercel assim que o primeiro deploy subir. Se não funcionar, a alternativa é
+reescrever `backend/src/main.ts` com um adapter serverless manual
+(`@codegenie/serverless-express`) que dá controle direto sobre a captura do
+raw body.
