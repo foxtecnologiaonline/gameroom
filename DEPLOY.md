@@ -74,7 +74,7 @@ desenvolvimento inseguros ou simulados:
 | Estorno | Implementar `RefundGateway` (`backend/src/refund/`) com a API de reembolso do gateway escolhido |
 | Nota fiscal | Implementar `NotaFiscalProvider` (`backend/src/nota-fiscal/`) com um provedor real (ex.: NFE.io) |
 | Frontend | Rebuildar a imagem com `NEXT_PUBLIC_API_URL` apontando para o domínio público real do backend; servir atrás de HTTPS |
-| Backend | Servir atrás de HTTPS/reverse proxy; `CORS` hoje está aberto (`app.enableCors()` sem restrição) — restringir à origem real do frontend em produção |
+| Backend | Servir atrás de HTTPS/reverse proxy; definir `CORS_ORIGIN` (domínio do frontend) — sem a variável, CORS fica aberto (aceitável em dev/homologação) |
 | Observabilidade | O logging estruturado (`x-request-id` + log por requisição) já existe; plugar um coletor real (Datadog, CloudWatch, etc.) e alertas para os `Logger.error` de falha crítica (emissão/estorno/nota fiscal esgotando tentativas) |
 
 Cada um desses pontos de integração já é uma interface plugável no código
@@ -135,10 +135,18 @@ repositório, cada um com seu próprio Root Directory.
    - `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `CODIGO_ENCRYPTION_KEY`,
      `PAGAMENTO_WEBHOOK_SECRET` — gerados com `openssl rand -base64 32`
    - `RESERVA_EXPIRACAO_MINUTOS=15`
+   - `CORS_ORIGIN` — a URL do projeto frontend (passo 4) — pode deixar vazio
+     no primeiro deploy (CORS aberto) e preencher depois, já que a URL do
+     frontend só existe depois que os dois projetos estiverem no ar
    - `package.json` já tem o script `vercel-build` (`prisma generate &&
      prisma migrate deploy && nest build`) — a Vercel usa esse script
      automaticamente no lugar de `build`, então as migrations rodam durante
      o build, não a cada requisição
+   - `backend/vercel.json` já define região `pdx1` (Portland/Oregon — a mais
+     próxima do Supabase, que está em `aws-0-us-west-2`) e `maxDuration: 60`
+     nas functions; ajuste a região se o projeto Supabase estiver em outra —
+     **não verificado ao vivo nesta sessão** (sem acesso de rede pra testar
+     contra a Vercel de verdade), conferir no primeiro deploy
 3. **QStash Schedule** (substitui o antigo scheduler de 5 min do BullMQ):
    depois do primeiro deploy do backend, crie uma schedule apontando para
    `https://<seu-backend>.vercel.app/jobs/estoque/verificar-reabastecimento`
@@ -148,9 +156,9 @@ repositório, cada um com seu próprio Root Directory.
 4. **Projeto Vercel do frontend** (já existe): aponte `NEXT_PUBLIC_API_URL`
    para a URL do projeto backend do passo 2 e faça redeploy — essa variável
    é embutida no bundle em build time.
-5. **No backend**, depois que a URL do frontend for definitiva, restringir o
-   CORS (`app.enableCors()` em `src/main.ts`, hoje aberto) a essa origem —
-   ver linha "Backend" na tabela acima.
+5. **No backend**, depois que a URL do frontend for definitiva, defina
+   `CORS_ORIGIN` com essa URL e redeploy — ver linha "Backend" na tabela
+   acima.
 6. Crie o admin inicial rodando `ADMIN_SEED_EMAIL=... ADMIN_SEED_SENHA=...
    npx prisma db seed` a partir de uma máquina com a `DATABASE_URL` de
    produção configurada (a Vercel não expõe shell interativo no projeto).
