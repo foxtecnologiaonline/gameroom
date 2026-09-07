@@ -20,14 +20,14 @@ const SELOS_CONFIANCA = [
 
 function DetalheSkeleton() {
   return (
-    <div className="mx-auto grid max-w-4xl grid-cols-1 gap-8 md:grid-cols-2">
-      <div className="aspect-[4/3] animate-pulse rounded-lg bg-slate-200" />
+    <div className="mx-auto grid max-w-5xl grid-cols-1 gap-8 md:grid-cols-2">
+      <div className="skeleton aspect-[4/3] rounded-xl" />
       <div className="space-y-3">
-        <div className="h-4 w-24 animate-pulse rounded bg-slate-200" />
-        <div className="h-7 w-3/4 animate-pulse rounded bg-slate-200" />
-        <div className="h-4 w-full animate-pulse rounded bg-slate-200" />
-        <div className="h-4 w-2/3 animate-pulse rounded bg-slate-200" />
-        <div className="h-9 w-1/3 animate-pulse rounded bg-slate-200" />
+        <div className="skeleton h-4 w-24" />
+        <div className="skeleton h-7 w-3/4" />
+        <div className="skeleton h-4 w-full" />
+        <div className="skeleton h-4 w-2/3" />
+        <div className="skeleton h-9 w-1/3" />
       </div>
     </div>
   );
@@ -96,80 +96,87 @@ export default function ProdutoDetalhePage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl">
-      <nav className="mb-6 text-sm text-slate-500">
+    <div className="mx-auto max-w-5xl">
+      <nav className="mb-6 flex items-center gap-2 text-sm text-slate-500">
         <Link href="/produtos" className="hover:text-brand-700">
           Produtos
         </Link>
-        <span className="mx-2">/</span>
-        <span className="text-slate-700">{produto.nome}</span>
+        <span>/</span>
+        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+          {produto.categoria}
+        </span>
+        <span>/</span>
+        <span className="truncate text-slate-700">{produto.nome}</span>
       </nav>
 
-      <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-        <div className="aspect-[4/3] overflow-hidden rounded-xl shadow-sm">
+      <div className="grid grid-cols-1 gap-10 md:grid-cols-2">
+        <div className="aspect-[4/3] overflow-hidden rounded-xl shadow-soft">
           <ProductCover nome={produto.nome} categoria={produto.categoria} imagemUrl={produto.imagemUrl} />
         </div>
 
-        <div>
+        <div className="md:sticky md:top-24 md:self-start">
           <span className="mb-3 inline-block rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
             {produto.categoria}
           </span>
           <h1 className="mb-2 text-2xl font-bold text-slate-900 sm:text-3xl">{produto.nome}</h1>
           {produto.descricao && <p className="mb-4 whitespace-pre-line text-slate-600">{produto.descricao}</p>}
-          <p className="mb-6 text-3xl font-bold text-brand-700">{formatarPreco(produto.preco)}</p>
 
-          {erroCompra && (
-            <div className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{erroCompra}</div>
-          )}
+          <div className="card p-5">
+            <p className="mb-4 text-3xl font-bold text-brand-700">{formatarPreco(produto.preco)}</p>
 
-          {!mostrarFormEmail && (
-            <button className="btn-primary w-full sm:w-auto" onClick={handleComprarClick} disabled={comprando}>
-              {comprando ? "Processando..." : "Comprar agora"}
-            </button>
-          )}
+            {erroCompra && (
+              <div className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{erroCompra}</div>
+            )}
 
-          {mostrarFormEmail && !usuario && (
-            <form onSubmit={handleSubmit(onSubmitEmail)} className="space-y-3 rounded-md border border-slate-200 p-4">
-              <p className="text-sm text-slate-600">Informe seu e-mail para continuar a compra:</p>
-              <div>
-                <input type="email" className="input" placeholder="seu@email.com" {...register("email")} />
-                {errors.email && <p className="field-error">{errors.email.message}</p>}
-              </div>
-              <div className="flex gap-2">
-                <button type="submit" className="btn-primary" disabled={comprando}>
-                  {comprando ? "Processando..." : "Continuar"}
-                </button>
-                <button type="button" className="btn-secondary" onClick={() => setMostrarFormEmail(false)}>
-                  Cancelar
-                </button>
-              </div>
-            </form>
-          )}
+            {!mostrarFormEmail && (
+              <button className="btn-accent w-full py-3 text-base" onClick={handleComprarClick} disabled={comprando}>
+                {comprando ? "Processando..." : "Comprar agora"}
+              </button>
+            )}
 
-          <dl className="mt-6 space-y-3 border-t border-slate-100 pt-6">
-            {SELOS_CONFIANCA.map((selo) => (
-              <div key={selo.titulo} className="flex gap-3">
-                <span className="mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full bg-green-100 text-green-700">
-                  <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
-                    <path
-                      fillRule="evenodd"
-                      d="M16.7 5.3a1 1 0 010 1.4l-7.4 7.4a1 1 0 01-1.4 0L3.3 9.5a1 1 0 111.4-1.4l3.6 3.6 6.7-6.7a1 1 0 011.4 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </span>
+            {mostrarFormEmail && !usuario && (
+              <form onSubmit={handleSubmit(onSubmitEmail)} className="space-y-3 rounded-md border border-slate-200 p-4">
+                <p className="text-sm text-slate-600">Informe seu e-mail para continuar a compra:</p>
                 <div>
-                  <dt className="text-sm font-medium text-slate-800">{selo.titulo}</dt>
-                  <dd className="text-xs text-slate-500">{selo.descricao}</dd>
+                  <input type="email" className="input" placeholder="seu@email.com" {...register("email")} />
+                  {errors.email && <p className="field-error">{errors.email.message}</p>}
                 </div>
-              </div>
-            ))}
-          </dl>
+                <div className="flex gap-2">
+                  <button type="submit" className="btn-accent flex-1" disabled={comprando}>
+                    {comprando ? "Processando..." : "Continuar"}
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={() => setMostrarFormEmail(false)}>
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+            )}
+
+            <dl className="mt-5 space-y-3 border-t border-slate-100 pt-5">
+              {SELOS_CONFIANCA.map((selo) => (
+                <div key={selo.titulo} className="flex gap-3">
+                  <span className="mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full bg-green-100 text-green-700">
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+                      <path
+                        fillRule="evenodd"
+                        d="M16.7 5.3a1 1 0 010 1.4l-7.4 7.4a1 1 0 01-1.4 0L3.3 9.5a1 1 0 111.4-1.4l3.6 3.6 6.7-6.7a1 1 0 011.4 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </span>
+                  <div>
+                    <dt className="text-sm font-medium text-slate-800">{selo.titulo}</dt>
+                    <dd className="text-xs text-slate-500">{selo.descricao}</dd>
+                  </div>
+                </div>
+              ))}
+            </dl>
+          </div>
         </div>
       </div>
 
       {produto.conteudos && produto.conteudos.length > 0 && (
-        <div className="card mt-8 p-6">
+        <div className="card mt-10 max-w-2xl p-6">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Conteúdo incluso</h2>
           <ul className="divide-y divide-slate-100">
             {produto.conteudos
