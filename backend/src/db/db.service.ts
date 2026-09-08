@@ -89,7 +89,11 @@ interface DbShape {
   reabastecimentos: Reabastecimento[];
 }
 
-const DB_PATH = path.join(__dirname, "..", "..", "data", "db.json");
+// Em runtime serverless (Vercel) o único diretório com permissão de escrita é /tmp,
+// e ele é efêmero por instância — os dados sobrevivem enquanto a função ficar "quente".
+const DB_PATH = process.env.VERCEL
+  ? "/tmp/gameroom-db.json"
+  : path.join(__dirname, "..", "..", "data", "db.json");
 
 @Injectable()
 export class DbService implements OnModuleInit {
