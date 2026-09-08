@@ -8,8 +8,6 @@ import { formatarPreco, mensagemErro } from "@/lib/format";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useToast } from "@/lib/toast-context";
 
-const isDev = process.env.NODE_ENV === "development";
-
 export default function CheckoutVendaPage() {
   const params = useParams<{ vendaId: string }>();
   const router = useRouter();
@@ -99,18 +97,16 @@ export default function CheckoutVendaPage() {
           <button className="btn-secondary" onClick={carregarVenda}>
             Atualizar status
           </button>
-          {isDev && venda.status !== "confirmada" && (
+          {venda.status !== "confirmada" && (
             <button className="btn-primary" onClick={simularPagamentoAprovado} disabled={simulando}>
               {simulando ? "Simulando..." : "Simular pagamento aprovado"}
             </button>
           )}
         </div>
-        {isDev && (
-          <p className="mt-3 text-xs text-slate-400">
-            Botão visível apenas em ambiente de desenvolvimento — chama o webhook de pagamento diretamente
-            enquanto o gateway real não está integrado.
-          </p>
-        )}
+        <p className="mt-3 text-xs text-slate-400">
+          Este MVP ainda não tem gateway de pagamento real integrado — o botão acima chama o webhook de
+          confirmação diretamente para permitir testar o fluxo completo.
+        </p>
       </div>
     </div>
   );
