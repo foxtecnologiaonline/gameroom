@@ -3,8 +3,10 @@
 Marketplace de jogos, contas, ativos digitais, colecionáveis, skins e
 ferramentas, com múltiplos sellers.
 
-Stack fixa: NestJS + PostgreSQL + Redis/BullMQ + Meilisearch + Next.js +
-Pagar.me (split via `recipient_id`) + Melhor Envio (frete).
+Stack fixa: NestJS 11 + TypeORM + PostgreSQL + Redis/BullMQ + Meilisearch +
+Next.js + Pagar.me (split via `recipient_id`) + Melhor Envio (frete).
+Auth: JWT (access curto + refresh rotativo, hash SHA-256 persistido) via
+Passport, RBAC com `@Roles`/`RolesGuard` (`src/common/`).
 
 Arquitetura: Modular Monolith, 1 schema Postgres por módulo
 (`catalog.*`, `orders.*`, `payments.*`...), comunicação entre módulos
@@ -26,7 +28,7 @@ status de ciclo de vida próprios por `SubOrder`). O comprador vê o
 ## Bounded contexts do MVP (ordem fixa do backlog)
 
 1. Monorepo + Docker Compose + CI — **feito**.
-2. `identity` — registro/login/JWT + RBAC (`buyer`, `seller`, `admin`).
+2. `identity` — registro/login/JWT + RBAC (`buyer`, `seller`, `admin`) — **feito**.
 3. `seller` — onboarding + aprovação por admin.
 4. `catalog` — produto + oferta + categoria.
 5. `inventory` — reserva/liberação de estoque atômica (lock otimista).
@@ -64,9 +66,14 @@ antes do item 14 do backlog estar em produção.
 ```bash
 docker compose up -d          # Postgres + Redis
 npm install                   # instala os dois workspaces
+npm run migration:run --workspace apps/api   # aplica as migrations
 npm run dev:api                # apps/api em http://localhost:3001/api
 npm run dev:storefront          # apps/storefront em http://localhost:3000
 ```
+
+Para ter um usuário admin (necessário a partir do item 3, aprovação de
+seller): defina `ADMIN_EMAIL`/`ADMIN_PASSWORD` no `.env` do `apps/api` e
+rode `npm run seed:admin --workspace apps/api` (idempotente).
 
 `npm run lint` / `npm test` / `npm run build` na raiz rodam em todos os
 workspaces (`--if-present`, usados pelo CI em `.github/workflows/ci.yml`).

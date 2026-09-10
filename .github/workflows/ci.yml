@@ -11,6 +11,36 @@ jobs:
     strategy:
       matrix:
         workspace: [apps/storefront, apps/api]
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: gameroom
+          POSTGRES_PASSWORD: gameroom
+          POSTGRES_DB: gameroom
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gameroom -d gameroom"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://gameroom:gameroom@localhost:5432/gameroom
+      REDIS_URL: redis://localhost:6379
+      JWT_ACCESS_SECRET: ci-access-secret
+      JWT_ACCESS_EXPIRES_SECONDS: '900'
+      JWT_REFRESH_SECRET: ci-refresh-secret
+      JWT_REFRESH_EXPIRES_SECONDS: '604800'
     steps:
       - uses: actions/checkout@v4
 
@@ -30,6 +60,14 @@ jobs:
 
       - name: Test
         run: npm run test --workspace ${{ matrix.workspace }} --if-present
+
+      - name: Run migrations
+        if: matrix.workspace == 'apps/api'
+        run: npm run migration:run --workspace apps/api
+
+      - name: Test e2e
+        if: matrix.workspace == 'apps/api'
+        run: npm run test:e2e --workspace apps/api
 
       - name: Build
         run: npm run build --workspace ${{ matrix.workspace }} --if-present
