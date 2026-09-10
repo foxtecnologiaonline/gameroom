@@ -29,7 +29,7 @@ status de ciclo de vida próprios por `SubOrder`). O comprador vê o
 
 1. Monorepo + Docker Compose + CI — **feito**.
 2. `identity` — registro/login/JWT + RBAC (`buyer`, `seller`, `admin`) — **feito**.
-3. `seller` — onboarding + aprovação por admin.
+3. `seller` — onboarding + aprovação por admin — **feito**.
 4. `catalog` — produto + oferta + categoria.
 5. `inventory` — reserva/liberação de estoque atômica (lock otimista).
 6. `cart` — carrinho persistido por buyer, multi-seller.
@@ -45,6 +45,16 @@ status de ciclo de vida próprios por `SubOrder`). O comprador vê o
 
 Não introduzir módulos fora do MVP (chat, cupom, disputa, recomendação)
 antes do item 14 do backlog estar em produção.
+
+### Pendência conhecida: recipient_id do Pagar.me
+
+O módulo `seller` já chama um `RecipientGateway` (`src/seller/gateways/`)
+no momento da aprovação, mas a implementação hoje é um stub
+(`StubRecipientGateway`) que gera um id local — a chamada real
+`POST /recipients` do Pagar.me (payload de conta bancária, holder
+document etc.) fica para o item 8 (`payments`), quando o contrato exato da
+API for definido. Trocar o stub pela implementação real é uma mudança de
+um arquivo só (o provider `RECIPIENT_GATEWAY` no `seller.module.ts`).
 
 ## Regras de engenharia não-negociáveis
 

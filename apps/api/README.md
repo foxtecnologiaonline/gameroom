@@ -24,6 +24,7 @@ migrations:
 
 ```bash
 npm run migration:run --workspace apps/api
+npm run seed:admin --workspace apps/api   # cria o admin de ADMIN_EMAIL/ADMIN_PASSWORD
 ```
 
 ## Stack
@@ -60,5 +61,13 @@ prefixadas pelo módulo que criam (ex.: `InitIdentity`).
     (reuso de um token já rotacionado é rejeitado).
 - `src/common/` — infraestrutura cross-module (`@Roles`/`RolesGuard`) usada
   pelos módulos que vierem a seguir para proteger rotas por role.
+- `src/seller/` — módulo `seller` (backlog item 3): onboarding e aprovação.
+  - `POST /api/sellers` (autenticado) — buyer aplica para virar seller,
+    status inicial `pending`. Um único cadastro por usuário.
+  - `GET /api/sellers/:id` — dono do cadastro ou admin.
+  - `PATCH /api/sellers/:id/status` — só admin (`@Roles(Role.Admin)`).
+    Ao aprovar: registra o seller no `RecipientGateway` (hoje um stub —
+    ver pendência no `CLAUDE.md`) e promove o usuário para a role `seller`
+    via `UsersService.addRole` do módulo `identity`.
 - `src/app.module.ts` — módulo raiz, agrega os módulos de cada bounded
   context conforme forem implementados (ver backlog no `CLAUDE.md`).

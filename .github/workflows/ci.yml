@@ -41,6 +41,8 @@ jobs:
       JWT_ACCESS_EXPIRES_SECONDS: '900'
       JWT_REFRESH_SECRET: ci-refresh-secret
       JWT_REFRESH_EXPIRES_SECONDS: '604800'
+      ADMIN_EMAIL: admin@gameroom.local
+      ADMIN_PASSWORD: ci-admin-password
     steps:
       - uses: actions/checkout@v4
 
@@ -64,6 +66,10 @@ jobs:
       - name: Run migrations
         if: matrix.workspace == 'apps/api'
         run: npm run migration:run --workspace apps/api
+
+      - name: Seed admin
+        if: matrix.workspace == 'apps/api'
+        run: npm run seed:admin --workspace apps/api
 
       - name: Test e2e
         if: matrix.workspace == 'apps/api'

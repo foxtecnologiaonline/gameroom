@@ -31,4 +31,18 @@ export class UsersService {
   save(user: UserEntity): Promise<UserEntity> {
     return this.users.save(user);
   }
+
+  async addRole(userId: string, role: Role): Promise<UserEntity | null> {
+    const user = await this.findById(userId);
+    if (!user) {
+      return null;
+    }
+
+    if (!user.roles.includes(role)) {
+      user.roles = [...user.roles, role];
+      await this.users.save(user);
+    }
+
+    return user;
+  }
 }
