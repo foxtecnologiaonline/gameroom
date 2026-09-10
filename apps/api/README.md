@@ -69,5 +69,16 @@ prefixadas pelo módulo que criam (ex.: `InitIdentity`).
     Ao aprovar: registra o seller no `RecipientGateway` (hoje um stub —
     ver pendência no `CLAUDE.md`) e promove o usuário para a role `seller`
     via `UsersService.addRole` do módulo `identity`.
+- `src/catalog/` — módulo `catalog` (backlog item 4): produto, oferta e
+  categoria.
+  - `POST /api/products` — só role `seller` (`RolesGuard`).
+  - `GET /api/products?query=` — busca por título (`ILIKE`, ver pendência
+    do Meilisearch no `CLAUDE.md`).
+  - `GET /api/products/:id` — produto + suas ofertas, ordenadas por preço.
+  - `POST /api/products/:id/offers` — só seller aprovado
+    (`SellersService.findApprovedByUserId`); recalcula o buybox winner
+    (menor preço entre ofertas com estoque) a cada oferta criada.
+  - Categorias são seed de dados na própria migration (`InitCatalog`), sem
+    endpoint de CRUD — ver pendência no `CLAUDE.md`.
 - `src/app.module.ts` — módulo raiz, agrega os módulos de cada bounded
   context conforme forem implementados (ver backlog no `CLAUDE.md`).

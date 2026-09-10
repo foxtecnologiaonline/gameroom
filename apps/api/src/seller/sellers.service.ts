@@ -68,6 +68,12 @@ export class SellersService {
     return seller;
   }
 
+  findApprovedByUserId(userId: string): Promise<SellerEntity | null> {
+    return this.sellers.findOne({
+      where: { userId, status: SellerStatus.Approved },
+    });
+  }
+
   async updateStatus(
     id: string,
     dto: UpdateSellerStatusDto,

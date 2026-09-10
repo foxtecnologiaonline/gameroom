@@ -14,5 +14,6 @@ import { SellersService } from './sellers.service';
     SellersService,
     { provide: RECIPIENT_GATEWAY, useClass: StubRecipientGateway },
   ],
+  exports: [SellersService],
 })
 export class SellerModule {}

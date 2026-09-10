@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { buildDataSourceOptions } from './database/data-source.options';
+import { CatalogModule } from './catalog/catalog.module';
 import { HealthModule } from './health/health.module';
 import { IdentityModule } from './identity/identity.module';
 import { SellerModule } from './seller/seller.module';
@@ -13,6 +14,7 @@ import { SellerModule } from './seller/seller.module';
     HealthModule,
     IdentityModule,
     SellerModule,
+    CatalogModule,
   ],
 })
 export class AppModule {}

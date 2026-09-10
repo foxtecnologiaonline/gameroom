@@ -30,7 +30,7 @@ status de ciclo de vida próprios por `SubOrder`). O comprador vê o
 1. Monorepo + Docker Compose + CI — **feito**.
 2. `identity` — registro/login/JWT + RBAC (`buyer`, `seller`, `admin`) — **feito**.
 3. `seller` — onboarding + aprovação por admin — **feito**.
-4. `catalog` — produto + oferta + categoria.
+4. `catalog` — produto + oferta + categoria — **feito**.
 5. `inventory` — reserva/liberação de estoque atômica (lock otimista).
 6. `cart` — carrinho persistido por buyer, multi-seller.
 7. `checkout` — carrinho → `Order` + `SubOrder`s (sem cobrar ainda).
@@ -46,15 +46,25 @@ status de ciclo de vida próprios por `SubOrder`). O comprador vê o
 Não introduzir módulos fora do MVP (chat, cupom, disputa, recomendação)
 antes do item 14 do backlog estar em produção.
 
-### Pendência conhecida: recipient_id do Pagar.me
+### Pendências conhecidas
 
-O módulo `seller` já chama um `RecipientGateway` (`src/seller/gateways/`)
-no momento da aprovação, mas a implementação hoje é um stub
-(`StubRecipientGateway`) que gera um id local — a chamada real
-`POST /recipients` do Pagar.me (payload de conta bancária, holder
-document etc.) fica para o item 8 (`payments`), quando o contrato exato da
-API for definido. Trocar o stub pela implementação real é uma mudança de
-um arquivo só (o provider `RECIPIENT_GATEWAY` no `seller.module.ts`).
+- **recipient_id do Pagar.me**: o módulo `seller` já chama um
+  `RecipientGateway` (`src/seller/gateways/`) no momento da aprovação, mas
+  a implementação hoje é um stub (`StubRecipientGateway`) que gera um id
+  local — a chamada real `POST /recipients` do Pagar.me (payload de conta
+  bancária, holder document etc.) fica para o item 8 (`payments`), quando
+  o contrato exato da API for definido. Trocar o stub pela implementação
+  real é uma mudança de um arquivo só (o provider `RECIPIENT_GATEWAY` no
+  `seller.module.ts`).
+- **Busca do catalog**: `GET /products?query=` hoje é `ILIKE` no Postgres
+  (`ProductsService.search`), suficiente para o volume do MVP. Meilisearch
+  (decisão fechada na seção 0 do escopo) entra quando ranking/facetas/
+  tolerância a erro de digitação virarem necessidade real — troca isolada
+  em `ProductsService`, sem mudar o contrato do endpoint.
+- **Categorias**: não há endpoint de CRUD (a spec não lista um em `catalog`)
+  — as 5 categorias do MVP são seed de dados na migration `InitCatalog`
+  (`catalog.categories`). Um painel admin de moderação de catálogo (item
+  14) é o gatilho natural para uma API de categorias, se precisar.
 
 ## Regras de engenharia não-negociáveis
 
