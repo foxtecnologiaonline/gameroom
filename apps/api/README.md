@@ -193,5 +193,19 @@ prefixadas pelo módulo que criam (ex.: `InitIdentity`).
     `in_transit`/`delivered`, mas nada os atinge ainda: sem
     webhook/callback de transportadora, o rastreio fica preso em
     `label_created` (mesma pendência).
+- `src/reviews/` — módulo `reviews` (backlog item 11): avaliação por
+  `SubOrder`, liberada só após `delivered`.
+  - `POST /api/reviews` (autenticado) — body
+    `{subOrderId, rating (1-5), comment?}`. `404` se o `SubOrder` não
+    existe; `403` se o requester não é o buyer do `Order` correspondente
+    (via `OrdersService.findSubOrderById` + `findById`); `409` se o
+    `SubOrder` ainda não está `delivered`, ou se já existe uma review
+    para ele (`sub_order_id` é `UNIQUE`). Sem `IdempotencyInterceptor` —
+    não move dinheiro nem estoque, e a unicidade de `sub_order_id` já
+    faz o papel de guarda contra duplicidade.
+  - `GET /api/sellers/:id/reviews` — público (sem `JwtAuthGuard`,
+    vitrine da loja); `404` se o seller não existe.
+  - Review é por `SubOrder` (não por produto/oferta individual) — ver
+    pendência no `CLAUDE.md`.
 - `src/app.module.ts` — módulo raiz, agrega os módulos de cada bounded
   context conforme forem implementados (ver backlog no `CLAUDE.md`).

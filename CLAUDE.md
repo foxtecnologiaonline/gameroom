@@ -41,7 +41,7 @@ status de ciclo de vida próprios por `SubOrder`). O comprador vê o
 10. `orders` — status por `SubOrder` (pending → paid → shipped → delivered),
     evento por transição — **feito**: `GET /orders/:id`,
     `GET /sellers/:id/orders`, `PATCH /suborders/:id/status`.
-11. `reviews` — liberado só após `delivered`.
+11. `reviews` — liberado só após `delivered` — **feito**.
 12. Storefront: home, busca, produto, carrinho, checkout.
 13. Painel seller: cadastro de produto, listagem de pedidos.
 14. Painel admin: aprovação de seller, moderação de catálogo.
@@ -120,6 +120,14 @@ antes do item 14 do backlog estar em produção.
   `paid→shipped` avulsos por generalidade (útil para correção manual por
   um admin), sempre validando a sequência fixa do enum e nunca pulando
   ou retrocedendo um passo.
+- **Review é por `SubOrder`, não por produto**: 1 avaliação por
+  `SubOrder` entregue (rating 1-5 + comentário opcional), atribuída ao
+  seller daquele `SubOrder` — não ao produto/oferta individual. Decisão
+  deliberada para o MVP: um `SubOrder` pode ter N itens de N ofertas
+  diferentes do mesmo seller, e review por item exigiria decidir qual
+  oferta está sendo avaliada (não especificado). `GET /sellers/:id/reviews`
+  é público (sem `JwtAuthGuard`) — vitrine da loja não exige login.
+  Revisitar se o storefront (item 12) precisar de review por produto.
 
 ## Regras de engenharia não-negociáveis
 

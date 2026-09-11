@@ -11,6 +11,7 @@ import { IdentityModule } from './identity/identity.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
+import { ReviewsModule } from './reviews/reviews.module';
 import { SellerModule } from './seller/seller.module';
 import { ShippingModule } from './shipping/shipping.module';
 
@@ -29,6 +30,7 @@ import { ShippingModule } from './shipping/shipping.module';
     CheckoutModule,
     PaymentsModule,
     ShippingModule,
+    ReviewsModule,
   ],
 })
 export class AppModule {}
