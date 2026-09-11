@@ -1,7 +1,8 @@
 /**
  * Sequence given verbatim by CLAUDE.md: pending -> paid -> shipped ->
- * delivered. Transition endpoints (PATCH /suborders/:id/status) and the
- * domain event per transition are backlog item 10, not built here.
+ * delivered. `payments`/`shipping` drive pending->paid and paid->shipped
+ * automatically; PATCH /suborders/:id/status (backlog item 10) covers the
+ * remaining manual, seller-driven step to `delivered`.
  */
 export enum SubOrderStatus {
   Pending = 'pending',

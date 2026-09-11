@@ -111,14 +111,28 @@ prefixadas pelo módulo que criam (ex.: `InitIdentity`).
     tentar remover item de outro buyer, `404` para item inexistente.
   - **Não reserva estoque** — só valida que a oferta existe. A reserva de
     verdade acontece no `checkout` (item 7), via `inventory`.
-- `src/orders/` — entidades e persistência do bounded context `orders`
-  (schema `orders.*`: `orders`, `sub_orders`, `order_items`), criado
-  porque `checkout` (item 7) precisa delas. **Parcial de propósito**:
-  `OrdersService` tem `create()`, `findById()` e `updateSubOrderStatus()`
-  (essa última é o único jeito de mudar o status de um `SubOrder` — sempre
-  emite `SubOrderStatusChangedEvent`). Faltam os endpoints HTTP do item
-  10: `GET /orders/:id`, `GET /sellers/:id/orders`,
-  `PATCH /suborders/:id/status`.
+- `src/orders/` — bounded context `orders` (schema `orders.*`: `orders`,
+  `sub_orders`, `order_items`), backlog item 10 completo. Construído em
+  camadas: `create()` (item 7, para o `checkout`), `findById()` +
+  `updateSubOrderStatus()` (item 8, para `payments`), `findSubOrderById()`
+  (item 9, para `shipping`) e agora os 3 endpoints HTTP.
+  - `GET /api/orders/:id` (autenticado) — Order consolidado com seus
+    `SubOrder`s e itens; `404` se não existe, `403` para quem não é o
+    buyer dono (admin sempre pode).
+  - `GET /api/sellers/:id/orders` (autenticado) — lista os `SubOrder`s de
+    um seller. Reaproveita `SellersService.findByIdForRequester` (mesma
+    checagem de dono/admin de `GET /sellers/:id`) antes de listar.
+  - `PATCH /api/suborders/:id/status` (autenticado) — avança o status de
+    um `SubOrder` exatamente um passo na sequência fixa
+    `pending → paid → shipped → delivered`; `404` se o SubOrder não
+    existe, `403` se quem chama não é o seller dono nem admin, `409` para
+    qualquer transição que pule um passo, retroceda ou parta de
+    `delivered` (terminal). Delega a mutação para
+    `updateSubOrderStatus()` — nunca faz `.save()` direto — então
+    `SubOrderStatusChangedEvent` sempre é emitido. Na prática
+    `pending→paid` e `paid→shipped` já acontecem sozinhos (via
+    `payments`/`shipping`); esse endpoint existe principalmente para o
+    passo manual `shipped→delivered` (ver pendência no `CLAUDE.md`).
 - `src/checkout/` — módulo `checkout` (backlog item 7): carrinho →
   `Order` + N `SubOrder`.
   - `POST /api/checkout` (autenticado, exige `Idempotency-Key`):

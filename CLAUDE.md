@@ -39,9 +39,8 @@ status de ciclo de vida próprios por `SubOrder`). O comprador vê o
 9. `shipping` — cotação de frete por `SubOrder` + etiqueta pós-pagamento — **feito**
    (com `StubMelhorEnvioGateway` — ver pendência abaixo).
 10. `orders` — status por `SubOrder` (pending → paid → shipped → delivered),
-    evento por transição — **entidades e criação já existem** (o item 7
-    precisava delas); faltam `GET /orders/:id`, `GET /sellers/:id/orders`,
-    `PATCH /suborders/:id/status` e o evento de domínio por transição.
+    evento por transição — **feito**: `GET /orders/:id`,
+    `GET /sellers/:id/orders`, `PATCH /suborders/:id/status`.
 11. `reviews` — liberado só após `delivered`.
 12. Storefront: home, busca, produto, carrinho, checkout.
 13. Painel seller: cadastro de produto, listagem de pedidos.
@@ -111,6 +110,16 @@ antes do item 14 do backlog estar em produção.
   `shipped` via `OrdersService.updateSubOrderStatus`; o rastreio real
   (`GET /shipping/:id/tracking`) fica preso em `label_created` até essa
   integração existir.
+- **`PATCH /suborders/:id/status` cobre só a transição manual**:
+  `pending→paid` (via `payments`) e `paid→shipped` (via `shipping`) já
+  são automáticos, cada um chamando `OrdersService.updateSubOrderStatus`
+  no fim do próprio fluxo. Na prática, o único passo que esse endpoint
+  precisa cobrir hoje é `shipped→delivered` (marcação manual do seller,
+  já que não existe confirmação de entrega por transportadora — mesma
+  pendência do rastreio acima); ele também aceita `pending→paid` e
+  `paid→shipped` avulsos por generalidade (útil para correção manual por
+  um admin), sempre validando a sequência fixa do enum e nunca pulando
+  ou retrocedendo um passo.
 
 ## Regras de engenharia não-negociáveis
 

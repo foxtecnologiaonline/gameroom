@@ -1,7 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { Role } from '../identity/role.enum';
+import { SellersService } from '../seller/sellers.service';
 import {
   SUB_ORDER_STATUS_CHANGED,
   SubOrderStatusChangedEvent,
@@ -30,6 +37,26 @@ export interface OrderWithSubOrders extends OrderEntity {
   subOrders: SubOrderWithItems[];
 }
 
+export interface RequestingUser {
+  id: string;
+  roles: string[];
+}
+
+/**
+ * Fixed forward path (CLAUDE.md): pending -> paid -> shipped -> delivered.
+ * `null` means terminal — no further PATCH transition is legal from there.
+ * pending->paid and paid->shipped are normally driven by `payments`/
+ * `shipping` calling updateSubOrderStatus directly; this map is what
+ * PATCH /suborders/:id/status (a manual, seller-driven transition — e.g.
+ * marking `delivered` once no carrier webhook exists) is allowed to do.
+ */
+const NEXT_STATUS: Record<SubOrderStatus, SubOrderStatus | null> = {
+  [SubOrderStatus.Pending]: SubOrderStatus.Paid,
+  [SubOrderStatus.Paid]: SubOrderStatus.Shipped,
+  [SubOrderStatus.Shipped]: SubOrderStatus.Delivered,
+  [SubOrderStatus.Delivered]: null,
+};
+
 @Injectable()
 export class OrdersService {
   constructor(
@@ -40,6 +67,7 @@ export class OrdersService {
     private readonly subOrders: Repository<SubOrderEntity>,
     @InjectRepository(OrderItemEntity)
     private readonly orderItems: Repository<OrderItemEntity>,
+    private readonly sellers: SellersService,
     private readonly events: EventEmitter2,
   ) {}
 
@@ -113,8 +141,57 @@ export class OrdersService {
     return { ...order, subOrders: withItems };
   }
 
+  /**
+   * GET /orders/:id — the buyer sees only their own consolidated Order;
+   * admin sees any.
+   */
+  async findByIdForRequester(
+    orderId: string,
+    requester: RequestingUser,
+  ): Promise<OrderWithSubOrders> {
+    const order = await this.findById(orderId);
+    if (!order) {
+      throw new NotFoundException('Order não encontrado');
+    }
+
+    const isOwner = order.buyerId === requester.id;
+    const isAdmin = requester.roles.includes(Role.Admin);
+    if (!isOwner && !isAdmin) {
+      throw new ForbiddenException('Sem permissão para ver este order');
+    }
+
+    return order;
+  }
+
   findSubOrderById(subOrderId: string): Promise<SubOrderEntity | null> {
     return this.subOrders.findOne({ where: { id: subOrderId } });
+  }
+
+  /**
+   * GET /sellers/:id/orders — a seller sees only their own SubOrders;
+   * admin sees any seller's. Reuses SellersService.findByIdForRequester
+   * for the exact same ownership/404/403 check `GET /sellers/:id` already
+   * enforces, instead of re-deriving it here.
+   */
+  async findSubOrdersForSeller(
+    sellerId: string,
+    requester: RequestingUser,
+  ): Promise<SubOrderWithItems[]> {
+    await this.sellers.findByIdForRequester(sellerId, requester);
+
+    const subOrders = await this.subOrders.find({
+      where: { sellerId },
+      order: { createdAt: 'DESC' },
+    });
+
+    return Promise.all(
+      subOrders.map(async (subOrder) => ({
+        ...subOrder,
+        items: await this.orderItems.find({
+          where: { subOrderId: subOrder.id },
+        }),
+      })),
+    );
   }
 
   /**
@@ -149,6 +226,44 @@ export class OrdersService {
     );
 
     return saved;
+  }
+
+  /**
+   * PATCH /suborders/:id/status — the seller who owns the SubOrder (or
+   * admin) manually advances it exactly one step along NEXT_STATUS.
+   * Delegates the actual mutation to updateSubOrderStatus so the event
+   * is always emitted through the single established choke point.
+   */
+  async transitionSubOrderStatus(
+    subOrderId: string,
+    newStatus: SubOrderStatus,
+    requester: RequestingUser,
+  ): Promise<SubOrderEntity> {
+    const subOrder = await this.subOrders.findOne({
+      where: { id: subOrderId },
+    });
+    if (!subOrder) {
+      throw new NotFoundException('SubOrder não encontrado');
+    }
+
+    const isAdmin = requester.roles.includes(Role.Admin);
+    if (!isAdmin) {
+      const seller = await this.sellers.findApprovedByUserId(requester.id);
+      if (!seller || seller.id !== subOrder.sellerId) {
+        throw new ForbiddenException(
+          'Você só pode alterar o status dos seus próprios sub-orders',
+        );
+      }
+    }
+
+    const allowedNext = NEXT_STATUS[subOrder.status];
+    if (allowedNext !== newStatus) {
+      throw new ConflictException(
+        `Transição inválida: ${subOrder.status} -> ${newStatus}`,
+      );
+    }
+
+    return this.updateSubOrderStatus(subOrderId, newStatus);
   }
 }
 
