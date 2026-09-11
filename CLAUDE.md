@@ -32,7 +32,7 @@ status de ciclo de vida próprios por `SubOrder`). O comprador vê o
 3. `seller` — onboarding + aprovação por admin — **feito**.
 4. `catalog` — produto + oferta + categoria — **feito**.
 5. `inventory` — reserva/liberação de estoque atômica (lock otimista) — **feito**.
-6. `cart` — carrinho persistido por buyer, multi-seller.
+6. `cart` — carrinho persistido por buyer, multi-seller — **feito**.
 7. `checkout` — carrinho → `Order` + `SubOrder`s (sem cobrar ainda).
 8. `payments` — Pagar.me, split por `SubOrder`, webhook idempotente.
 9. `shipping` — cotação de frete por `SubOrder` + etiqueta pós-pagamento.
@@ -67,10 +67,12 @@ antes do item 14 do backlog estar em produção.
   14) é o gatilho natural para uma API de categorias, se precisar.
 - **Expiração de reserva**: `inventory.reservations` não expira sozinha —
   hoje só é liberada por uma chamada explícita a `POST /offers/:id/release`.
-  Quando `cart`/`checkout` (itens 6-7) passarem a reservar estoque durante
-  o fluxo de compra, um job (BullMQ) para auto-liberar reservas
-  abandonadas vira necessário; a tabela já tem os campos (`status`,
-  `created_at`) para isso, só falta o job.
+  `cart` (item 6) NÃO reserva estoque ao adicionar item — é só uma lista
+  persistida (`CartService.addItem` apenas valida que a oferta existe).
+  A reserva de fato só acontece no `checkout` (item 7), que é quem vai
+  precisar de um job (BullMQ) para auto-liberar reservas abandonadas; a
+  tabela já tem os campos (`status`, `created_at`) para isso, só falta o
+  job.
 
 ## Regras de engenharia não-negociáveis
 

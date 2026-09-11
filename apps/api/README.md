@@ -99,5 +99,17 @@ prefixadas pelo módulo que criam (ex.: `InitIdentity`).
     dono da oferta ou um admin.
   - As três rotas exigem o header `Idempotency-Key`
     (`IdempotencyInterceptor`).
+- `src/cart/` — módulo `cart` (backlog item 6): carrinho persistido por
+  buyer, agregando ofertas de múltiplos sellers.
+  - `POST /api/cart/items` — adiciona `{offerId, quantity}`; se a oferta já
+    estiver no carrinho, soma a quantidade em vez de duplicar a linha.
+    `404` se a oferta não existir.
+  - `GET /api/cart` — carrinho do usuário autenticado (criado sob demanda
+    na primeira leitura/escrita), cada item já enriquecido com a oferta
+    atual (`item.offer`).
+  - `DELETE /api/cart/items/:id` — só o dono do carrinho; `403` para quem
+    tentar remover item de outro buyer, `404` para item inexistente.
+  - **Não reserva estoque** — só valida que a oferta existe. A reserva de
+    verdade acontece no `checkout` (item 7), via `inventory`.
 - `src/app.module.ts` — módulo raiz, agrega os módulos de cada bounded
   context conforme forem implementados (ver backlog no `CLAUDE.md`).
