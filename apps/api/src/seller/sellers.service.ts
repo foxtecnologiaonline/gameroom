@@ -68,6 +68,10 @@ export class SellersService {
     return seller;
   }
 
+  findById(id: string): Promise<SellerEntity | null> {
+    return this.sellers.findOne({ where: { id } });
+  }
+
   findApprovedByUserId(userId: string): Promise<SellerEntity | null> {
     return this.sellers.findOne({
       where: { userId, status: SellerStatus.Approved },

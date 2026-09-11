@@ -66,8 +66,8 @@ prefixadas pelo módulo que criam (ex.: `InitIdentity`).
     por `platform.idempotency_keys`. Exige o header `Idempotency-Key` e
     faz replay do resultado exato de uma chamada repetida em vez de
     reexecutar o handler. Obrigatório em qualquer endpoint que mova
-    dinheiro ou estoque (regra do `CLAUDE.md`); usado hoje pelo
-    `inventory`, pronto para `checkout`/`payments`.
+    dinheiro ou estoque (regra do `CLAUDE.md`); usado por `inventory`,
+    `checkout` e `POST /payments/charge`.
 - `src/seller/` — módulo `seller` (backlog item 3): onboarding e aprovação.
   - `POST /api/sellers` (autenticado) — buyer aplica para virar seller,
     status inicial `pending`. Um único cadastro por usuário.
@@ -112,11 +112,13 @@ prefixadas pelo módulo que criam (ex.: `InitIdentity`).
   - **Não reserva estoque** — só valida que a oferta existe. A reserva de
     verdade acontece no `checkout` (item 7), via `inventory`.
 - `src/orders/` — entidades e persistência do bounded context `orders`
-  (schema `orders.*`: `orders`, `sub_orders`, `order_items`), criado agora
-  porque `checkout` (item 7) precisa delas. **Parcial de propósito**: só
-  `OrdersService.create()` existe. `GET /orders/:id`,
-  `GET /sellers/:id/orders`, `PATCH /suborders/:id/status` e o evento de
-  domínio por transição de status são o item 10, ainda não implementado.
+  (schema `orders.*`: `orders`, `sub_orders`, `order_items`), criado
+  porque `checkout` (item 7) precisa delas. **Parcial de propósito**:
+  `OrdersService` tem `create()`, `findById()` e `updateSubOrderStatus()`
+  (essa última é o único jeito de mudar o status de um `SubOrder` — sempre
+  emite `SubOrderStatusChangedEvent`). Faltam os endpoints HTTP do item
+  10: `GET /orders/:id`, `GET /sellers/:id/orders`,
+  `PATCH /suborders/:id/status`.
 - `src/checkout/` — módulo `checkout` (backlog item 7): carrinho →
   `Order` + N `SubOrder`.
   - `POST /api/checkout` (autenticado, exige `Idempotency-Key`):
@@ -131,7 +133,25 @@ prefixadas pelo módulo que criam (ex.: `InitIdentity`).
        `SubOrder` (um por seller) + `OrderItem`s via `OrdersService.create`,
        numa transação;
     4. esvazia o carrinho (`CartService.clear`).
-  - Ainda não cobra nada (`payments` é o item 8) — o `Order` nasce com
-    `status: 'pending'`.
+  - Ainda não cobra nada — o `Order` nasce com `status: 'pending'`; cobrar
+    é `payments` (`POST /payments/charge`, abaixo).
+- `src/payments/` — módulo `payments` (backlog item 8): cobrança e split.
+  - `POST /api/payments/charge` (autenticado, exige `Idempotency-Key`) —
+    body `{orderId, method}`. Valida que o order é do requester e está
+    `pending`; rejeita uma segunda cobrança para o mesmo order (`409`).
+    Monta o split por `SubOrder` (valor + `recipientId` do seller) e chama
+    o `PaymentGateway` (hoje `StubPaymentGateway` — ver pendência no
+    `CLAUDE.md`): `credit_card` resolve síncrono (`paid` na hora),
+    `pix` fica `pending` até o webhook confirmar. Grava `Payment` +
+    uma linha de `split_transactions` por seller (append-only — nunca
+    `UPDATE`, regra do `CLAUDE.md`) e, se já `paid`, chama
+    `OrdersService.updateSubOrderStatus` para cada `SubOrder`.
+  - `POST /api/payments/webhook` — sem `JwtAuthGuard` (quem chama é o
+    gateway, não um usuário logado) e sem `IdempotencyInterceptor` (o
+    gateway não manda `Idempotency-Key`); idempotente por comparação:
+    se o status recebido já é o atual do `Payment`, é um no-op. Uma
+    mudança real de status grava uma nova leva de `split_transactions`
+    (uma por seller, nunca sobrescrevendo a anterior) e completa os
+    `SubOrder`s pendentes quando o status vira `paid`.
 - `src/app.module.ts` — módulo raiz, agrega os módulos de cada bounded
   context conforme forem implementados (ver backlog no `CLAUDE.md`).

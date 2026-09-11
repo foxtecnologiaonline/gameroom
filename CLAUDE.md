@@ -34,7 +34,8 @@ status de ciclo de vida próprios por `SubOrder`). O comprador vê o
 5. `inventory` — reserva/liberação de estoque atômica (lock otimista) — **feito**.
 6. `cart` — carrinho persistido por buyer, multi-seller — **feito**.
 7. `checkout` — carrinho → `Order` + `SubOrder`s (sem cobrar ainda) — **feito**.
-8. `payments` — Pagar.me, split por `SubOrder`, webhook idempotente.
+8. `payments` — Pagar.me, split por `SubOrder`, webhook idempotente — **feito**
+   (com `StubPaymentGateway` — ver pendência abaixo).
 9. `shipping` — cotação de frete por `SubOrder` + etiqueta pós-pagamento.
 10. `orders` — status por `SubOrder` (pending → paid → shipped → delivered),
     evento por transição — **entidades e criação já existem** (o item 7
@@ -50,14 +51,24 @@ antes do item 14 do backlog estar em produção.
 
 ### Pendências conhecidas
 
-- **recipient_id do Pagar.me**: o módulo `seller` já chama um
-  `RecipientGateway` (`src/seller/gateways/`) no momento da aprovação, mas
-  a implementação hoje é um stub (`StubRecipientGateway`) que gera um id
-  local — a chamada real `POST /recipients` do Pagar.me (payload de conta
-  bancária, holder document etc.) fica para o item 8 (`payments`), quando
-  o contrato exato da API for definido. Trocar o stub pela implementação
-  real é uma mudança de um arquivo só (o provider `RECIPIENT_GATEWAY` no
-  `seller.module.ts`).
+- **Pagar.me real**: dois stubs ainda de pé, mesmo padrão em ambos —
+  porta + provider trocável num arquivo só, sem mudar o resto do fluxo:
+  - `StubRecipientGateway` (`src/seller/gateways/`) — usado na aprovação
+    de seller, gera um `recipient_id` local em vez de chamar
+    `POST /recipients`.
+  - `StubPaymentGateway` (`src/payments/gateways/`) — usado em
+    `POST /payments/charge`, simula `credit_card` como síncrono (`paid`
+    na hora) e `pix` como assíncrono (`pending` até o webhook confirmar),
+    mas não chama o Pagar.me de verdade nem valida cartão/QR code.
+  Ambos ficam assim até haver credenciais reais para desenhar o payload
+  exato (conta bancária, holder document, split_rules, tokenização de
+  cartão) — sem isso, uma implementação "real" não seria testável nem
+  confiável.
+- **Assinatura do webhook**: `POST /payments/webhook` não verifica que a
+  chamada realmente veio do Pagar.me (sem `JwtAuthGuard` de propósito — é
+  um callback de sistema externo, não de um usuário logado — mas também
+  sem checar HMAC/assinatura). Verificação de assinatura é parte da
+  integração real do Pagar.me, junto com o resto da pendência acima.
 - **Busca do catalog**: `GET /products?query=` hoje é `ILIKE` no Postgres
   (`ProductsService.search`), suficiente para o volume do MVP. Meilisearch
   (decisão fechada na seção 0 do escopo) entra quando ranking/facetas/
@@ -91,7 +102,16 @@ antes do item 14 do backlog estar em produção.
   (`IdempotencyInterceptor`, tabela `platform.idempotency_keys`), já usada
   pelo `inventory` e reutilizável por `checkout`/`payments`.
 - Toda transição de status de `SubOrder`/`Payment` emite um evento de
-  domínio — mesmo dentro do monolito.
+  domínio — mesmo dentro do monolito. Implementado com `EventEmitter2`
+  (`@nestjs/event-emitter@3.x` — a v12 é ESM-only e quebra o Jest/ts-jest
+  deste projeto, por isso o pin): `SubOrderStatusChangedEvent`
+  (`src/orders/events/`, emitido só por `OrdersService.updateSubOrderStatus`,
+  nunca por um `.save()` direto em outro módulo) e
+  `PaymentStatusChangedEvent` (`src/payments/events/`, emitido na criação
+  do Payment e em toda mudança de status via webhook). Nenhum listener
+  reage a eles ainda — não havia necessidade real até agora — mas o
+  contrato existe e está testado (`orders.service.spec.ts`,
+  `payments.service.spec.ts`).
 - Nenhum módulo lê tabela de outro módulo diretamente; só via serviço
   exposto.
 - Toda tabela financeira é append-only para auditoria (sem UPDATE

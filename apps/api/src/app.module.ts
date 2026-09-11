@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { buildDataSourceOptions } from './database/data-source.options';
 import { CartModule } from './cart/cart.module';
@@ -9,11 +10,13 @@ import { HealthModule } from './health/health.module';
 import { IdentityModule } from './identity/identity.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { OrdersModule } from './orders/orders.module';
+import { PaymentsModule } from './payments/payments.module';
 import { SellerModule } from './seller/seller.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    EventEmitterModule.forRoot(),
     TypeOrmModule.forRootAsync({ useFactory: () => buildDataSourceOptions() }),
     HealthModule,
     IdentityModule,
@@ -23,6 +26,7 @@ import { SellerModule } from './seller/seller.module';
     CartModule,
     OrdersModule,
     CheckoutModule,
+    PaymentsModule,
   ],
 })
 export class AppModule {}
