@@ -88,4 +88,9 @@ export class CartService {
 
     await this.items.delete(item.id);
   }
+
+  async clear(buyerId: string): Promise<void> {
+    const cart = await this.getOrCreateCart(buyerId);
+    await this.items.delete({ cartId: cart.id });
+  }
 }

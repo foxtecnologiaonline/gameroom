@@ -33,11 +33,13 @@ status de ciclo de vida próprios por `SubOrder`). O comprador vê o
 4. `catalog` — produto + oferta + categoria — **feito**.
 5. `inventory` — reserva/liberação de estoque atômica (lock otimista) — **feito**.
 6. `cart` — carrinho persistido por buyer, multi-seller — **feito**.
-7. `checkout` — carrinho → `Order` + `SubOrder`s (sem cobrar ainda).
+7. `checkout` — carrinho → `Order` + `SubOrder`s (sem cobrar ainda) — **feito**.
 8. `payments` — Pagar.me, split por `SubOrder`, webhook idempotente.
 9. `shipping` — cotação de frete por `SubOrder` + etiqueta pós-pagamento.
 10. `orders` — status por `SubOrder` (pending → paid → shipped → delivered),
-    evento por transição.
+    evento por transição — **entidades e criação já existem** (o item 7
+    precisava delas); faltam `GET /orders/:id`, `GET /sellers/:id/orders`,
+    `PATCH /suborders/:id/status` e o evento de domínio por transição.
 11. `reviews` — liberado só após `delivered`.
 12. Storefront: home, busca, produto, carrinho, checkout.
 13. Painel seller: cadastro de produto, listagem de pedidos.
@@ -66,13 +68,21 @@ antes do item 14 do backlog estar em produção.
   (`catalog.categories`). Um painel admin de moderação de catálogo (item
   14) é o gatilho natural para uma API de categorias, se precisar.
 - **Expiração de reserva**: `inventory.reservations` não expira sozinha —
-  hoje só é liberada por uma chamada explícita a `POST /offers/:id/release`.
-  `cart` (item 6) NÃO reserva estoque ao adicionar item — é só uma lista
-  persistida (`CartService.addItem` apenas valida que a oferta existe).
-  A reserva de fato só acontece no `checkout` (item 7), que é quem vai
-  precisar de um job (BullMQ) para auto-liberar reservas abandonadas; a
-  tabela já tem os campos (`status`, `created_at`) para isso, só falta o
-  job.
+  só é liberada por uma chamada explícita a `POST /offers/:id/release`.
+  `cart` (item 6) NÃO reserva estoque ao adicionar item (só valida que a
+  oferta existe); a reserva de fato acontece no `checkout` (item 7), a
+  cada item do carrinho, no momento do `POST /checkout`. Se um `Order`
+  fica parado em `pending` (comprador nunca paga), a reserva de estoque
+  correspondente fica presa até alguém chamar `/release` manualmente —
+  falta um job (BullMQ) para auto-liberar reservas de orders abandonados;
+  a tabela já tem os campos (`status`, `created_at`) para isso.
+- **Falha parcial no checkout**: se uma reserva falhar no meio do
+  `POST /checkout` (estoque insuficiente de um item, ou erro ao persistir
+  o Order), o `CheckoutService` libera (compensa) todas as reservas já
+  feitas naquela chamada antes de propagar o erro — testado em
+  `checkout.service.spec.ts` e no e2e. Isso é orquestração em memória
+  (não um saga/outbox), aceitável no MVP porque cada reserva já é atômica
+  por si só; revisitar se o processo puder morrer no meio do laço.
 
 ## Regras de engenharia não-negociáveis
 

@@ -4,9 +4,11 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { buildDataSourceOptions } from './database/data-source.options';
 import { CartModule } from './cart/cart.module';
 import { CatalogModule } from './catalog/catalog.module';
+import { CheckoutModule } from './checkout/checkout.module';
 import { HealthModule } from './health/health.module';
 import { IdentityModule } from './identity/identity.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { OrdersModule } from './orders/orders.module';
 import { SellerModule } from './seller/seller.module';
 
 @Module({
@@ -19,6 +21,8 @@ import { SellerModule } from './seller/seller.module';
     CatalogModule,
     InventoryModule,
     CartModule,
+    OrdersModule,
+    CheckoutModule,
   ],
 })
 export class AppModule {}

@@ -111,5 +111,27 @@ prefixadas pelo módulo que criam (ex.: `InitIdentity`).
     tentar remover item de outro buyer, `404` para item inexistente.
   - **Não reserva estoque** — só valida que a oferta existe. A reserva de
     verdade acontece no `checkout` (item 7), via `inventory`.
+- `src/orders/` — entidades e persistência do bounded context `orders`
+  (schema `orders.*`: `orders`, `sub_orders`, `order_items`), criado agora
+  porque `checkout` (item 7) precisa delas. **Parcial de propósito**: só
+  `OrdersService.create()` existe. `GET /orders/:id`,
+  `GET /sellers/:id/orders`, `PATCH /suborders/:id/status` e o evento de
+  domínio por transição de status são o item 10, ainda não implementado.
+- `src/checkout/` — módulo `checkout` (backlog item 7): carrinho →
+  `Order` + N `SubOrder`.
+  - `POST /api/checkout` (autenticado, exige `Idempotency-Key`):
+    1. lê o carrinho do buyer; `409` se estiver vazio;
+    2. reserva o estoque de cada item via `InventoryService.reserve`
+       (lock otimista do item 5) — se uma reserva falhar no meio do
+       caminho (estoque insuficiente, ou erro ao persistir o Order
+       depois), libera (compensa) todas as reservas já feitas nesta
+       chamada antes de propagar o erro; o carrinho permanece intacto
+       para o buyer tentar de novo;
+    3. agrupa os itens por `offer.sellerId` e cria 1 `Order` + N
+       `SubOrder` (um por seller) + `OrderItem`s via `OrdersService.create`,
+       numa transação;
+    4. esvazia o carrinho (`CartService.clear`).
+  - Ainda não cobra nada (`payments` é o item 8) — o `Order` nasce com
+    `status: 'pending'`.
 - `src/app.module.ts` — módulo raiz, agrega os módulos de cada bounded
   context conforme forem implementados (ver backlog no `CLAUDE.md`).
