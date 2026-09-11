@@ -113,6 +113,10 @@ export class OrdersService {
     return { ...order, subOrders: withItems };
   }
 
+  findSubOrderById(subOrderId: string): Promise<SubOrderEntity | null> {
+    return this.subOrders.findOne({ where: { id: subOrderId } });
+  }
+
   /**
    * The only way a SubOrder's status changes. Always emits
    * SUB_ORDER_STATUS_CHANGED (non-negotiable rule in CLAUDE.md) — callers

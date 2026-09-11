@@ -153,5 +153,31 @@ prefixadas pelo módulo que criam (ex.: `InitIdentity`).
     mudança real de status grava uma nova leva de `split_transactions`
     (uma por seller, nunca sobrescrevendo a anterior) e completa os
     `SubOrder`s pendentes quando o status vira `paid`.
+- `src/shipping/` — módulo `shipping` (backlog item 9): cotação de frete
+  e etiqueta por `SubOrder`.
+  - `POST /api/shipping/quote` (autenticado) — body
+    `{destinationZip, weightGrams}`, delega direto ao `ShippingGateway`
+    (hoje `StubMelhorEnvioGateway` — ver pendência no `CLAUDE.md`) e
+    devolve as opções (`correios-pac`/`correios-sedex`) com preço e prazo;
+    sem `IdempotencyInterceptor` (não move dinheiro nem estoque, é só
+    consulta).
+  - `POST /api/shipping/label` (autenticado, exige `Idempotency-Key`) —
+    body `{subOrderId, destinationZip, weightGrams, carrier}`. `404` se o
+    `SubOrder` não existe; `403` se o seller autenticado não é o dono do
+    `SubOrder` (via `SellersService.findApprovedByUserId`); `409` se o
+    `SubOrder` ainda não está `paid`, ou se já existe uma etiqueta para
+    ele. Chama `ShippingGateway.createLabel`, persiste o `Shipment`
+    (`status: label_created`) e transiciona o `SubOrder` para `shipped`
+    via `OrdersService.updateSubOrderStatus` (mesmo choke point usado por
+    `payments`, sempre emite `SubOrderStatusChangedEvent`).
+  - `GET /api/shipping/:id/tracking` (autenticado) — `404` se a etiqueta
+    não existe; autorizado para `admin`, o seller dono do `SubOrder` ou o
+    buyer do `Order` correspondente; `403` para qualquer outro usuário.
+  - `destinationZip`/`weightGrams` vêm sempre no corpo da requisição
+    (não há peso em `catalog.offers` nem endereço persistido de `buyer`
+    — ver pendência no `CLAUDE.md`). `ShipmentStatus` tem
+    `in_transit`/`delivered`, mas nada os atinge ainda: sem
+    webhook/callback de transportadora, o rastreio fica preso em
+    `label_created` (mesma pendência).
 - `src/app.module.ts` — módulo raiz, agrega os módulos de cada bounded
   context conforme forem implementados (ver backlog no `CLAUDE.md`).

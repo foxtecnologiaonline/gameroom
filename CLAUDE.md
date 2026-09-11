@@ -36,7 +36,8 @@ status de ciclo de vida próprios por `SubOrder`). O comprador vê o
 7. `checkout` — carrinho → `Order` + `SubOrder`s (sem cobrar ainda) — **feito**.
 8. `payments` — Pagar.me, split por `SubOrder`, webhook idempotente — **feito**
    (com `StubPaymentGateway` — ver pendência abaixo).
-9. `shipping` — cotação de frete por `SubOrder` + etiqueta pós-pagamento.
+9. `shipping` — cotação de frete por `SubOrder` + etiqueta pós-pagamento — **feito**
+   (com `StubMelhorEnvioGateway` — ver pendência abaixo).
 10. `orders` — status por `SubOrder` (pending → paid → shipped → delivered),
     evento por transição — **entidades e criação já existem** (o item 7
     precisava delas); faltam `GET /orders/:id`, `GET /sellers/:id/orders`,
@@ -94,6 +95,22 @@ antes do item 14 do backlog estar em produção.
   `checkout.service.spec.ts` e no e2e. Isso é orquestração em memória
   (não um saga/outbox), aceitável no MVP porque cada reserva já é atômica
   por si só; revisitar se o processo puder morrer no meio do laço.
+- **Peso/endereço não modelados**: `catalog.offers` não tem peso/dimensões
+  e não existe endereço de entrega persistido para `buyer` em lugar
+  nenhum do sistema. Por isso `POST /shipping/quote` e
+  `POST /shipping/label` recebem `destinationZip`/`weightGrams` como
+  parâmetros da própria requisição, em vez de derivá-los de dado
+  persistido — decisão deliberada para não fazer scope-creep em
+  `catalog`/`identity` fora da ordem do backlog. Revisitar quando um
+  desses módulos precisar desse dado por outro motivo.
+- **Rastreio de frete parado em `label_created`**: `ShipmentStatus` tem
+  `in_transit`/`delivered`, mas nada os atinge hoje — não existe
+  webhook/callback de transportadora (o paralelo do que `payments` tem
+  para o Pagar.me) para avançar esse status depois da etiqueta emitida.
+  `POST /shipping/label` só cria a etiqueta e já move o `SubOrder` para
+  `shipped` via `OrdersService.updateSubOrderStatus`; o rastreio real
+  (`GET /shipping/:id/tracking`) fica preso em `label_created` até essa
+  integração existir.
 
 ## Regras de engenharia não-negociáveis
 
