@@ -32,6 +32,15 @@ export class OfferEntity {
   @Column({ name: 'is_buybox_winner', default: false })
   isBuyboxWinner: boolean;
 
+  /**
+   * Optimistic lock for concurrent stock writes (backlog item 5). Bumped
+   * explicitly by OffersService's conditional UPDATEs — not TypeORM's
+   * @VersionColumn magic, so the WHERE clause and the retry loop stay
+   * fully visible in one place.
+   */
+  @Column({ type: 'int', default: 1 })
+  version: number;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 }

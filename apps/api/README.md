@@ -59,8 +59,15 @@ prefixadas pelo módulo que criam (ex.: `InitIdentity`).
   - Refresh token: JWT longo com `jti`, hash SHA-256 persistido em
     `identity.refresh_tokens`; cada uso rotaciona e revoga o token anterior
     (reuso de um token já rotacionado é rejeitado).
-- `src/common/` — infraestrutura cross-module (`@Roles`/`RolesGuard`) usada
-  pelos módulos que vierem a seguir para proteger rotas por role.
+- `src/common/` — infraestrutura cross-module:
+  - `decorators/roles.decorator.ts` + `guards/roles.guard.ts` — RBAC
+    (`@Roles(...)`), usado por todos os módulos com rotas restritas.
+  - `idempotency/` — `IdempotencyInterceptor` (`@UseInterceptors`), backed
+    por `platform.idempotency_keys`. Exige o header `Idempotency-Key` e
+    faz replay do resultado exato de uma chamada repetida em vez de
+    reexecutar o handler. Obrigatório em qualquer endpoint que mova
+    dinheiro ou estoque (regra do `CLAUDE.md`); usado hoje pelo
+    `inventory`, pronto para `checkout`/`payments`.
 - `src/seller/` — módulo `seller` (backlog item 3): onboarding e aprovação.
   - `POST /api/sellers` (autenticado) — buyer aplica para virar seller,
     status inicial `pending`. Um único cadastro por usuário.
@@ -80,5 +87,17 @@ prefixadas pelo módulo que criam (ex.: `InitIdentity`).
     (menor preço entre ofertas com estoque) a cada oferta criada.
   - Categorias são seed de dados na própria migration (`InitCatalog`), sem
     endpoint de CRUD — ver pendência no `CLAUDE.md`.
+- `src/inventory/` — módulo `inventory` (backlog item 5): reserva/liberação
+  de estoque atômica.
+  - `POST /api/offers/:id/reserve` — decrementa o estoque da oferta
+    (lock otimista + retry, ver `OffersService.reserveStock`) e cria uma
+    `inventory.reservations` (`status: active`). `409` se não houver
+    estoque suficiente ou em caso de alta concorrência persistente.
+  - `POST /api/offers/:id/release` — devolve o estoque de uma reserva
+    ativa; `409` se ela já tiver sido liberada.
+  - `PATCH /api/offers/:id/stock` — define o estoque absoluto; só o seller
+    dono da oferta ou um admin.
+  - As três rotas exigem o header `Idempotency-Key`
+    (`IdempotencyInterceptor`).
 - `src/app.module.ts` — módulo raiz, agrega os módulos de cada bounded
   context conforme forem implementados (ver backlog no `CLAUDE.md`).

@@ -31,7 +31,7 @@ status de ciclo de vida próprios por `SubOrder`). O comprador vê o
 2. `identity` — registro/login/JWT + RBAC (`buyer`, `seller`, `admin`) — **feito**.
 3. `seller` — onboarding + aprovação por admin — **feito**.
 4. `catalog` — produto + oferta + categoria — **feito**.
-5. `inventory` — reserva/liberação de estoque atômica (lock otimista).
+5. `inventory` — reserva/liberação de estoque atômica (lock otimista) — **feito**.
 6. `cart` — carrinho persistido por buyer, multi-seller.
 7. `checkout` — carrinho → `Order` + `SubOrder`s (sem cobrar ainda).
 8. `payments` — Pagar.me, split por `SubOrder`, webhook idempotente.
@@ -65,11 +65,19 @@ antes do item 14 do backlog estar em produção.
   — as 5 categorias do MVP são seed de dados na migration `InitCatalog`
   (`catalog.categories`). Um painel admin de moderação de catálogo (item
   14) é o gatilho natural para uma API de categorias, se precisar.
+- **Expiração de reserva**: `inventory.reservations` não expira sozinha —
+  hoje só é liberada por uma chamada explícita a `POST /offers/:id/release`.
+  Quando `cart`/`checkout` (itens 6-7) passarem a reservar estoque durante
+  o fluxo de compra, um job (BullMQ) para auto-liberar reservas
+  abandonadas vira necessário; a tabela já tem os campos (`status`,
+  `created_at`) para isso, só falta o job.
 
 ## Regras de engenharia não-negociáveis
 
 - Todo endpoint que move dinheiro ou estoque é idempotente (chave de
-  idempotência no header).
+  idempotência no header) — infra pronta em `src/common/idempotency/`
+  (`IdempotencyInterceptor`, tabela `platform.idempotency_keys`), já usada
+  pelo `inventory` e reutilizável por `checkout`/`payments`.
 - Toda transição de status de `SubOrder`/`Payment` emite um evento de
   domínio — mesmo dentro do monolito.
 - Nenhum módulo lê tabela de outro módulo diretamente; só via serviço

@@ -15,5 +15,6 @@ import { ProductsService } from './products.service';
   ],
   controllers: [ProductsController],
   providers: [ProductsService, OffersService],
+  exports: [OffersService],
 })
 export class CatalogModule {}
