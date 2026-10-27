@@ -81,6 +81,19 @@ describe('Catalog (e2e)', () => {
     await app.close();
   });
 
+  it('lists the seeded categories publicly, without a token', async () => {
+    const result = await request(app.getHttpServer())
+      .get('/api/categories')
+      .expect(200);
+
+    expect(result.body.length).toBeGreaterThanOrEqual(5);
+    expect(result.body).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ slug: 'jogos', name: 'Jogos' }),
+      ]),
+    );
+  });
+
   it('rejects product creation from a plain buyer', async () => {
     const buyerToken = await registerAndLogin(
       `buyer-${randomUUID()}@example.com`,

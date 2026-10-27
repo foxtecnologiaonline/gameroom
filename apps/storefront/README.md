@@ -2,8 +2,8 @@
 
 Frontend do marketplace multi-vendedor (Next.js 14, App Router, Tailwind) —
 ver `/CLAUDE.md` na raiz do repo para a arquitetura e o backlog completos.
-Backlog item 12: home, busca, produto, carrinho, checkout. Painel seller
-(item 13) e painel admin (item 14) ainda não existem.
+Backlog itens 12 (home, busca, produto, carrinho, checkout) e 13 (painel
+seller). Painel admin (item 14) ainda não existe.
 
 ## Rodando localmente
 
@@ -57,9 +57,30 @@ mudança de contrato no backend deve ser refletida nesses dois arquivos.
   real do Pagar.me — ver pendência no `CLAUDE.md`).
 - `src/app/login/`, `src/app/registro/` — formulários de auth
   (`react-hook-form` + `zod`, `src/lib/schemas.ts`).
+- `src/lib/use-seller.ts` — hook `useSeller()`: resolve o cadastro de
+  seller do usuário logado via `GET /sellers/me` (não é um guard
+  binário de rota — `status` pode ser `pending`/`approved`/
+  `rejected`/`suspended`, cada página do painel decide o que mostrar).
+- `src/app/vendedor/page.tsx` — painel do seller (backlog item 13):
+  sem cadastro → formulário de aplicação (`POST /sellers`); `pending` →
+  "em análise"; `rejected`/`suspended` → mensagem (sem como reaplicar —
+  ver pendência no `CLAUDE.md`); `approved` → links para as duas
+  páginas abaixo.
+- `src/app/vendedor/produtos/novo/page.tsx` — cadastro de produto +
+  oferta num formulário só (`POST /products` depois
+  `POST /products/:id/offers`, sequencial); categoria vem de
+  `GET /categories` (novo, ver pendência). Bloqueado para quem não é
+  seller aprovado.
+- `src/app/vendedor/pedidos/page.tsx` — lista os `SubOrder`s do seller
+  (`GET /sellers/:id/orders`); por linha, ação contextual ao status:
+  `paid` → formulário inline de etiqueta (`POST /shipping/label`);
+  `shipped` → botão "marcar como entregue"
+  (`PATCH /suborders/:id/status`). Mesmo guard de aprovação da página
+  de cadastro.
 
-## Fora de escopo do item 12 (ver pendências no `CLAUDE.md`)
+## Fora de escopo (ver pendências no `CLAUDE.md`)
 
 Sem seletor de quantidade no carrinho (cada clique em "adicionar" soma
-+1), sem lista "meus pedidos" (não há endpoint `GET /orders` paginado
-por buyer no backend), sem painel seller/admin (itens 13/14).
++1), sem lista "meus pedidos" para o buyer (não há endpoint
+`GET /orders` paginado no backend), sem painel admin (item 14), sem
+forma de um seller rejeitado/suspenso reaplicar.

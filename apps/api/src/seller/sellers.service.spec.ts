@@ -134,6 +134,28 @@ describe('SellersService', () => {
     });
   });
 
+  describe('findMine', () => {
+    it("returns the requester's own seller record", async () => {
+      const seller = buildSeller();
+      repo.findOne.mockResolvedValue(seller);
+
+      const result = await service.findMine('user-1');
+
+      expect(repo.findOne).toHaveBeenCalledWith({
+        where: { userId: 'user-1' },
+      });
+      expect(result).toEqual(seller);
+    });
+
+    it('404s when the user never applied', async () => {
+      repo.findOne.mockResolvedValue(null);
+
+      await expect(service.findMine('user-1')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+
   describe('findPublicById', () => {
     it('returns only the public-safe fields', async () => {
       repo.findOne.mockResolvedValue(buildSeller());

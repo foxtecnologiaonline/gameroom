@@ -91,6 +91,21 @@ export class SellersService {
     return { id: seller.id, storeName: seller.storeName };
   }
 
+  /**
+   * GET /sellers/me — lets the storefront discover the logged-in user's
+   * own seller record (and its id/status), which it has no other way to
+   * find: findByIdForRequester needs a seller id the frontend doesn't
+   * have yet, and findApprovedByUserId silently hides pending/rejected
+   * applications.
+   */
+  async findMine(userId: string): Promise<SellerEntity> {
+    const seller = await this.sellers.findOne({ where: { userId } });
+    if (!seller) {
+      throw new NotFoundException('Você ainda não se cadastrou como seller');
+    }
+    return seller;
+  }
+
   findApprovedByUserId(userId: string): Promise<SellerEntity | null> {
     return this.sellers.findOne({
       where: { userId, status: SellerStatus.Approved },

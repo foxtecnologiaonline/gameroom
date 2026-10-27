@@ -31,6 +31,16 @@ export class SellersController {
     return this.sellers.apply(user.id, dto);
   }
 
+  /**
+   * Must be registered before ':id' — otherwise Nest/Express would match
+   * the literal "me" against the ':id' wildcard first.
+   */
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  findMine(@CurrentUser() user: AuthenticatedUser): Promise<SellerEntity> {
+    return this.sellers.findMine(user.id);
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   findOne(

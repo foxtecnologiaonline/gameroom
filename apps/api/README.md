@@ -73,6 +73,11 @@ prefixadas pelo módulo que criam (ex.: `InitIdentity`).
 - `src/seller/` — módulo `seller` (backlog item 3): onboarding e aprovação.
   - `POST /api/sellers` (autenticado) — buyer aplica para virar seller,
     status inicial `pending`. Um único cadastro por usuário.
+  - `GET /api/sellers/me` (autenticado) — o cadastro do próprio usuário
+    logado, `404` se nunca aplicou; adicionado no item 13 para o painel
+    seller descobrir o `sellerId`/status sem precisar conhecê-lo de
+    antemão. Registrado antes de `:id` no controller — senão `:id`
+    capturaria o literal `me`.
   - `GET /api/sellers/:id` — dono do cadastro ou admin.
   - `GET /api/sellers/:id/public` — público (sem guard), devolve só
     `{id, storeName}`; adicionado no item 12 para o storefront exibir o
@@ -90,8 +95,11 @@ prefixadas pelo módulo que criam (ex.: `InitIdentity`).
   - `POST /api/products/:id/offers` — só seller aprovado
     (`SellersService.findApprovedByUserId`); recalcula o buybox winner
     (menor preço entre ofertas com estoque) a cada oferta criada.
-  - Categorias são seed de dados na própria migration (`InitCatalog`), sem
-    endpoint de CRUD — ver pendência no `CLAUDE.md`.
+  - `GET /api/categories` — público, lista as 5 categorias seed
+    (`InitCatalog`); adicionado no item 13 porque o painel seller
+    precisa resolver um `categoryId` válido (UUID gerado pela migration,
+    não fixo) para cadastrar produto. Ainda sem CRUD — ver pendência no
+    `CLAUDE.md`.
 - `src/inventory/` — módulo `inventory` (backlog item 5): reserva/liberação
   de estoque atômica.
   - `POST /api/offers/:id/reserve` — decrementa o estoque da oferta

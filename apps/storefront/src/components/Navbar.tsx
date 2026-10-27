@@ -25,6 +25,9 @@ export function Navbar() {
               <Link href="/carrinho" className="text-slate-600 hover:text-brand-700">
                 Carrinho
               </Link>
+              <Link href="/vendedor" className="text-slate-600 hover:text-brand-700">
+                Vender
+              </Link>
               <span className="text-slate-400">|</span>
               <span className="text-slate-500">{user.email}</span>
               <button onClick={handleLogout} className="btn-secondary py-1">

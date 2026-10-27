@@ -102,6 +102,26 @@ export interface SellerPublic {
   storeName: string;
 }
 
+export type SellerStatus = "pending" | "approved" | "rejected" | "suspended";
+
+export interface Seller {
+  id: string;
+  userId: string;
+  storeName: string;
+  document: string;
+  status: SellerStatus;
+  recipientId: string | null;
+  createdAt: string;
+  approvedAt: string | null;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: string;
+}
+
 export interface Review {
   id: string;
   subOrderId: string;

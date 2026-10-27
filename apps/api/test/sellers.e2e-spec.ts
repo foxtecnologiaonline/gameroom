@@ -69,6 +69,14 @@ describe('Sellers (e2e)', () => {
       .expect(404);
   });
 
+  it('404s GET /sellers/me for a user who never applied', async () => {
+    const token = await registerAndLogin(`never-${randomUUID()}@example.com`);
+    await request(app.getHttpServer())
+      .get('/api/sellers/me')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(404);
+  });
+
   it('walks a seller from application through admin approval', async () => {
     const sellerEmail = `seller-${randomUUID()}@example.com`;
     const buyerToken = await registerAndLogin(sellerEmail);
@@ -80,6 +88,13 @@ describe('Sellers (e2e)', () => {
       .expect(201);
     expect(apply.body).toMatchObject({ status: 'pending', recipientId: null });
     const sellerId = apply.body.id;
+
+    // the owner can find their own seller record without knowing its id
+    const mine = await request(app.getHttpServer())
+      .get('/api/sellers/me')
+      .set('Authorization', `Bearer ${buyerToken}`)
+      .expect(200);
+    expect(mine.body.id).toBe(sellerId);
 
     // duplicate application
     await request(app.getHttpServer())

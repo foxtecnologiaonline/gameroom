@@ -113,6 +113,9 @@ export const endpoints = {
 
   products: "/products",
   product: (id: string) => `/products/${id}`,
+  productOffers: (id: string) => `/products/${id}/offers`,
+
+  categories: "/categories",
 
   cart: "/cart",
   cartItems: "/cart/items",
@@ -124,6 +127,12 @@ export const endpoints = {
   paymentsCharge: "/payments/charge",
   paymentsWebhook: "/payments/webhook",
 
+  sellers: "/sellers",
+  sellerMine: "/sellers/me",
   sellerPublic: (id: string) => `/sellers/${id}/public`,
   sellerReviews: (id: string) => `/sellers/${id}/reviews`,
+  sellerOrders: (id: string) => `/sellers/${id}/orders`,
+
+  shippingLabel: "/shipping/label",
+  subOrderStatus: (id: string) => `/suborders/${id}/status`,
 };

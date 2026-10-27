@@ -43,7 +43,7 @@ status de ciclo de vida próprios por `SubOrder`). O comprador vê o
     `GET /sellers/:id/orders`, `PATCH /suborders/:id/status`.
 11. `reviews` — liberado só após `delivered` — **feito**.
 12. Storefront: home, busca, produto, carrinho, checkout — **feito**.
-13. Painel seller: cadastro de produto, listagem de pedidos.
+13. Painel seller: cadastro de produto, listagem de pedidos — **feito**.
 14. Painel admin: aprovação de seller, moderação de catálogo.
 
 Não introduzir módulos fora do MVP (chat, cupom, disputa, recomendação)
@@ -163,6 +163,30 @@ antes do item 14 do backlog estar em produção.
   `/checkout/[orderId]` logo após o checkout. Um `GET /orders` paginado
   por buyer é candidato natural para quando o painel do comprador virar
   necessidade real (não estava no escopo do item 12).
+- **`GET /sellers/me` e `GET /categories`**: dois endpoints novos,
+  adicionados junto do item 13. O painel seller precisava de duas coisas
+  que não existiam: (a) o próprio frontend descobrir o `sellerId`/status
+  do usuário logado sem conhecer o id de antemão (`GET /sellers/:id` só
+  funciona se você já sabe o id) — `GET /sellers/me` resolve isso,
+  `404` se o usuário nunca aplicou; precisou ser registrado antes de
+  `GET /sellers/:id` no controller (senão `:id` capturaria o literal
+  "me"). (b) `POST /products` exige `categoryId`, mas o id é um UUID
+  gerado pela migration `InitCatalog`, não fixo — sem nenhum endpoint
+  de listagem, o formulário de cadastro de produto não tinha como
+  resolver um `categoryId` válido. `GET /categories` é público, lista
+  as 5 categorias seed; ainda não há CRUD (mesma pendência de sempre,
+  um painel admin de moderação é o gatilho natural).
+- **Seller rejeitado/suspenso não consegue reaplicar**:
+  `SellersService.apply()` bloqueia qualquer segunda aplicação
+  (`409 Já existe um cadastro de seller para este usuário`) só checando
+  se já existe um registro para aquele `userId` — não diferencia
+  `pending`/`approved` de `rejected`/`suspended`. Gap pré-existente
+  (de antes do item 13), só descoberto agora ao construir a tela de
+  onboarding do painel seller: hoje o storefront mostra "Cadastro
+  rejeitado"/"Conta suspensa" como estado permanente, sem como sair
+  dele. Resolver exigiria decidir a regra de negócio (permitir
+  reenvio? depois de quanto tempo? revisão manual?), fora do escopo
+  mínimo do item 13 — documentado para quando virar necessidade real.
 
 ## Regras de engenharia não-negociáveis
 

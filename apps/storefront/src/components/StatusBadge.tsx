@@ -7,6 +7,11 @@ const COLORS: Record<string, string> = {
 
   // PaymentStatus
   failed: "bg-red-100 text-red-800",
+
+  // SellerStatus
+  approved: "bg-green-100 text-green-800",
+  rejected: "bg-red-100 text-red-800",
+  suspended: "bg-slate-100 text-slate-600",
 };
 
 const LABELS: Record<string, string> = {
@@ -15,6 +20,10 @@ const LABELS: Record<string, string> = {
   shipped: "Enviado",
   delivered: "Entregue",
   failed: "Falhou",
+
+  approved: "Aprovado",
+  rejected: "Rejeitado",
+  suspended: "Suspenso",
 };
 
 export function StatusBadge({ status }: { status: string }) {
