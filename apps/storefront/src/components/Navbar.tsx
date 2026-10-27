@@ -28,6 +28,11 @@ export function Navbar() {
               <Link href="/vendedor" className="text-slate-600 hover:text-brand-700">
                 Vender
               </Link>
+              {user.roles.includes("admin") && (
+                <Link href="/admin" className="text-slate-600 hover:text-brand-700">
+                  Admin
+                </Link>
+              )}
               <span className="text-slate-400">|</span>
               <span className="text-slate-500">{user.email}</span>
               <button onClick={handleLogout} className="btn-secondary py-1">

@@ -106,6 +106,16 @@ export class SellersService {
     return seller;
   }
 
+  /**
+   * GET /sellers (admin-only) — the approval queue for the admin panel
+   * (backlog item 14). Returns every seller regardless of status; the
+   * client filters by status (e.g. pending) rather than this adding a
+   * query-param surface for a single internal screen.
+   */
+  findAll(): Promise<SellerEntity[]> {
+    return this.sellers.find({ order: { createdAt: 'ASC' } });
+  }
+
   findApprovedByUserId(userId: string): Promise<SellerEntity | null> {
     return this.sellers.findOne({
       where: { userId, status: SellerStatus.Approved },

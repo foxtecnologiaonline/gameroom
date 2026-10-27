@@ -2,8 +2,8 @@
 
 Frontend do marketplace multi-vendedor (Next.js 14, App Router, Tailwind) —
 ver `/CLAUDE.md` na raiz do repo para a arquitetura e o backlog completos.
-Backlog itens 12 (home, busca, produto, carrinho, checkout) e 13 (painel
-seller). Painel admin (item 14) ainda não existe.
+Backlog itens 12 (home, busca, produto, carrinho, checkout), 13 (painel
+seller) e 14 (painel admin) — MVP completo.
 
 ## Rodando localmente
 
@@ -77,10 +77,22 @@ mudança de contrato no backend deve ser refletida nesses dois arquivos.
   `shipped` → botão "marcar como entregue"
   (`PATCH /suborders/:id/status`). Mesmo guard de aprovação da página
   de cadastro.
+- `src/components/guards/RequireAdmin.tsx` — mostra "área restrita"
+  (não redireciona) quando o usuário logado não tem a role `admin`.
+- `src/app/admin/page.tsx` — painel admin (backlog item 14): links
+  para as duas páginas abaixo.
+- `src/app/admin/sellers/page.tsx` — fila de aprovação
+  (`GET /sellers`, admin-only, novo): sellers `pending` em destaque com
+  Aprovar/Rejeitar (`PATCH /sellers/:id/status`); já revisados listados
+  abaixo só para contexto.
+- `src/app/admin/produtos/page.tsx` — moderação de catálogo
+  (`GET /products/admin`, admin-only, novo): toggle Suspender/Reativar
+  por produto (`PATCH /products/:id/moderation`). Um produto suspenso
+  some da home/busca/detalhe pública imediatamente.
 
 ## Fora de escopo (ver pendências no `CLAUDE.md`)
 
 Sem seletor de quantidade no carrinho (cada clique em "adicionar" soma
 +1), sem lista "meus pedidos" para o buyer (não há endpoint
-`GET /orders` paginado no backend), sem painel admin (item 14), sem
-forma de um seller rejeitado/suspenso reaplicar.
+`GET /orders` paginado no backend), sem CRUD de categorias, sem forma
+de um seller rejeitado/suspenso reaplicar.

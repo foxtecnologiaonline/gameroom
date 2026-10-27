@@ -78,6 +78,10 @@ prefixadas pelo módulo que criam (ex.: `InitIdentity`).
     seller descobrir o `sellerId`/status sem precisar conhecê-lo de
     antemão. Registrado antes de `:id` no controller — senão `:id`
     capturaria o literal `me`.
+  - `GET /api/sellers` (só admin) — todos os sellers, ordenados por
+    `createdAt`; adicionado no item 14 para a fila de aprovação do
+    painel admin (o client filtra por status — não há query-param de
+    filtro no backend para essa única tela).
   - `GET /api/sellers/:id` — dono do cadastro ou admin.
   - `GET /api/sellers/:id/public` — público (sem guard), devolve só
     `{id, storeName}`; adicionado no item 12 para o storefront exibir o
@@ -100,6 +104,14 @@ prefixadas pelo módulo que criam (ex.: `InitIdentity`).
     precisa resolver um `categoryId` válido (UUID gerado pela migration,
     não fixo) para cadastrar produto. Ainda sem CRUD — ver pendência no
     `CLAUDE.md`.
+  - `GET /api/products/admin` (só admin, registrado antes de `:id` no
+    controller) — lista todos os produtos, incluindo suspensos; fila de
+    moderação do painel admin (item 14).
+  - `PATCH /api/products/:id/moderation` (só admin) — body
+    `{suspended: boolean}`; liga/desliga `ProductEntity.suspendedAt`
+    (soft, nunca um DELETE). Um produto suspenso some de
+    `GET /products`/`GET /products/:id` para qualquer requester,
+    incluindo o seller dono.
 - `src/inventory/` — módulo `inventory` (backlog item 5): reserva/liberação
   de estoque atômica.
   - `POST /api/offers/:id/reserve` — decrementa o estoque da oferta

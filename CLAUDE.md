@@ -44,7 +44,8 @@ status de ciclo de vida próprios por `SubOrder`). O comprador vê o
 11. `reviews` — liberado só após `delivered` — **feito**.
 12. Storefront: home, busca, produto, carrinho, checkout — **feito**.
 13. Painel seller: cadastro de produto, listagem de pedidos — **feito**.
-14. Painel admin: aprovação de seller, moderação de catálogo.
+14. Painel admin: aprovação de seller, moderação de catálogo — **feito**.
+    MVP completo.
 
 Não introduzir módulos fora do MVP (chat, cupom, disputa, recomendação)
 antes do item 14 do backlog estar em produção.
@@ -74,10 +75,13 @@ antes do item 14 do backlog estar em produção.
   (decisão fechada na seção 0 do escopo) entra quando ranking/facetas/
   tolerância a erro de digitação virarem necessidade real — troca isolada
   em `ProductsService`, sem mudar o contrato do endpoint.
-- **Categorias**: não há endpoint de CRUD (a spec não lista um em `catalog`)
-  — as 5 categorias do MVP são seed de dados na migration `InitCatalog`
-  (`catalog.categories`). Um painel admin de moderação de catálogo (item
-  14) é o gatilho natural para uma API de categorias, se precisar.
+- **Categorias**: ainda sem CRUD (a spec não lista um em `catalog`) — as
+  5 categorias do MVP continuam sendo seed de dados na migration
+  `InitCatalog` (`catalog.categories`). O item 13 adicionou
+  `GET /categories` (só leitura, ver pendência própria abaixo); o
+  painel admin de moderação de catálogo (item 14, feito) moderou
+  produtos, não categorias — criar/editar/remover categoria seguem sem
+  endpoint. Revisitar se virar necessidade real.
 - **Expiração de reserva**: `inventory.reservations` não expira sozinha —
   só é liberada por uma chamada explícita a `POST /offers/:id/release`.
   `cart` (item 6) NÃO reserva estoque ao adicionar item (só valida que a
@@ -187,8 +191,22 @@ antes do item 14 do backlog estar em produção.
   dele. Resolver exigiria decidir a regra de negócio (permitir
   reenvio? depois de quanto tempo? revisão manual?), fora do escopo
   mínimo do item 13 — documentado para quando virar necessidade real.
-
-## Regras de engenharia não-negociáveis
+- **`GET /sellers` (admin) e moderação de produto**: dois endpoints
+  novos do item 14. `GET /sellers` (admin-only) lista todos os sellers
+  para a fila de aprovação — não existia nenhuma forma de listar
+  sellers antes (só buscar um por id/`me`); o client filtra por status,
+  evitando adicionar um query-param só para essa tela. Moderação de
+  catálogo é uma capacidade nova de verdade, não só leitura:
+  `ProductEntity` ganhou `suspendedAt` (nullable, `timestamptz` — mesmo
+  padrão soft/append-only do resto do projeto, sem DELETE destrutivo),
+  `PATCH /products/:id/moderation` (admin-only) liga/desliga, e
+  `GET /products`/`GET /products/:id` passam a excluir produtos
+  suspensos da vitrine pública (busca não lista, detalhe 404 pra
+  qualquer requester, incluindo o seller dono — decisão deliberada,
+  "retirado do catálogo" é um estado uniforme). `GET /products/admin`
+  (admin-only, registrado antes de `:id` no controller pelo mesmo
+  motivo do `sellers/me`) lista tudo, suspenso ou não, para a fila de
+  moderação.
 
 - Todo endpoint que move dinheiro ou estoque é idempotente (chave de
   idempotência no header) — infra pronta em `src/common/idempotency/`

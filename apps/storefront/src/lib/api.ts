@@ -114,6 +114,8 @@ export const endpoints = {
   products: "/products",
   product: (id: string) => `/products/${id}`,
   productOffers: (id: string) => `/products/${id}/offers`,
+  productsAdmin: "/products/admin",
+  productModeration: (id: string) => `/products/${id}/moderation`,
 
   categories: "/categories",
 
@@ -132,6 +134,7 @@ export const endpoints = {
   sellerPublic: (id: string) => `/sellers/${id}/public`,
   sellerReviews: (id: string) => `/sellers/${id}/reviews`,
   sellerOrders: (id: string) => `/sellers/${id}/orders`,
+  sellerStatus: (id: string) => `/sellers/${id}/status`,
 
   shippingLabel: "/shipping/label",
   subOrderStatus: (id: string) => `/suborders/${id}/status`,

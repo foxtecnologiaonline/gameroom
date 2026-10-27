@@ -30,6 +30,7 @@ export interface Product {
   categoryId: string;
   brand: string | null;
   attributes: Record<string, unknown>;
+  suspendedAt: string | null;
   createdAt: string;
 }
 

@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   UseGuards,
@@ -15,6 +16,7 @@ import { Role } from '../identity/role.enum';
 import { AuthenticatedUser } from '../identity/strategies/jwt.strategy';
 import { CreateOfferDto } from './dto/create-offer.dto';
 import { CreateProductDto } from './dto/create-product.dto';
+import { ModerateProductDto } from './dto/moderate-product.dto';
 import { QueryProductsDto } from './dto/query-products.dto';
 import { OfferEntity } from './entities/offer.entity';
 import { ProductEntity } from './entities/product.entity';
@@ -40,9 +42,30 @@ export class ProductsController {
     return this.products.search(query.query);
   }
 
+  /**
+   * Must be registered before ':id' — otherwise Nest/Express would match
+   * the literal "admin" against the ':id' wildcard first.
+   */
+  @Get('admin')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  findAllForAdmin(): Promise<ProductEntity[]> {
+    return this.products.findAllForAdmin();
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string): Promise<ProductWithOffers> {
     return this.products.findByIdWithOffers(id);
+  }
+
+  @Patch(':id/moderation')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  moderate(
+    @Param('id') id: string,
+    @Body() dto: ModerateProductDto,
+  ): Promise<ProductEntity> {
+    return this.products.setSuspended(id, dto.suspended);
   }
 
   @Post(':id/offers')

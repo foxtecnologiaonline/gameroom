@@ -173,4 +173,67 @@ describe('Catalog (e2e)', () => {
     );
     expect(loser.isBuyboxWinner).toBe(false);
   });
+
+  it('rejects moderation from a non-admin', async () => {
+    const sellerToken = await becomeApprovedSeller();
+    const created = await request(app.getHttpServer())
+      .post('/api/products')
+      .set('Authorization', `Bearer ${sellerToken}`)
+      .send({ title: `Item ${randomUUID()}`, description: 'desc', categoryId })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .patch(`/api/products/${created.body.id}/moderation`)
+      .set('Authorization', `Bearer ${sellerToken}`)
+      .send({ suspended: true })
+      .expect(403);
+  });
+
+  it('lets an admin suspend and reactivate a product, hiding/showing it in the public catalog', async () => {
+    const sellerToken = await becomeApprovedSeller();
+    const title = `Item moderável ${randomUUID()}`;
+    const created = await request(app.getHttpServer())
+      .post('/api/products')
+      .set('Authorization', `Bearer ${sellerToken}`)
+      .send({ title, description: 'desc', categoryId })
+      .expect(201);
+    const productId = created.body.id;
+
+    const suspended = await request(app.getHttpServer())
+      .patch(`/api/products/${productId}/moderation`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ suspended: true })
+      .expect(200);
+    expect(suspended.body.suspendedAt).not.toBeNull();
+
+    // gone from the public product page and search
+    await request(app.getHttpServer())
+      .get(`/api/products/${productId}`)
+      .expect(404);
+    const hiddenSearch = await request(app.getHttpServer())
+      .get('/api/products')
+      .query({ query: title })
+      .expect(200);
+    expect(hiddenSearch.body).toHaveLength(0);
+
+    // still visible to the admin moderation queue
+    const adminList = await request(app.getHttpServer())
+      .get('/api/products/admin')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(adminList.body.some((p: { id: string }) => p.id === productId)).toBe(
+      true,
+    );
+
+    const reactivated = await request(app.getHttpServer())
+      .patch(`/api/products/${productId}/moderation`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ suspended: false })
+      .expect(200);
+    expect(reactivated.body.suspendedAt).toBeNull();
+
+    await request(app.getHttpServer())
+      .get(`/api/products/${productId}`)
+      .expect(200);
+  });
 });

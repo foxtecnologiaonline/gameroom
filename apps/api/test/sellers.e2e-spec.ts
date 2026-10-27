@@ -77,6 +77,37 @@ describe('Sellers (e2e)', () => {
       .expect(404);
   });
 
+  it('rejects GET /sellers from a non-admin', async () => {
+    const token = await registerAndLogin(
+      `non-admin-${randomUUID()}@example.com`,
+    );
+    await request(app.getHttpServer())
+      .get('/api/sellers')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(403);
+  });
+
+  it('lets an admin list every seller for the approval queue', async () => {
+    const email = `seller-list-${randomUUID()}@example.com`;
+    const token = await registerAndLogin(email);
+    const apply = await request(app.getHttpServer())
+      .post('/api/sellers')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ storeName: 'Loja da fila', document: '12345678900' })
+      .expect(201);
+
+    const list = await request(app.getHttpServer())
+      .get('/api/sellers')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(
+      list.body.some(
+        (s: { id: string; status: string }) =>
+          s.id === apply.body.id && s.status === 'pending',
+      ),
+    ).toBe(true);
+  });
+
   it('walks a seller from application through admin approval', async () => {
     const sellerEmail = `seller-${randomUUID()}@example.com`;
     const buyerToken = await registerAndLogin(sellerEmail);

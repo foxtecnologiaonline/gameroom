@@ -16,6 +16,7 @@ describe('SellersService', () => {
   let service: SellersService;
   let repo: {
     findOne: jest.Mock;
+    find: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
   };
@@ -36,7 +37,12 @@ describe('SellersService', () => {
     }) as SellerEntity;
 
   beforeEach(async () => {
-    repo = { findOne: jest.fn(), create: jest.fn(), save: jest.fn() };
+    repo = {
+      findOne: jest.fn(),
+      find: jest.fn(),
+      create: jest.fn(),
+      save: jest.fn(),
+    };
     users = { addRole: jest.fn() };
     recipientGateway = { createRecipient: jest.fn() };
 
@@ -83,6 +89,18 @@ describe('SellersService', () => {
         }),
       ).rejects.toBeInstanceOf(ConflictException);
       expect(repo.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('findAll', () => {
+    it('lists every seller ordered by creation date', async () => {
+      const sellers = [buildSeller()];
+      repo.find.mockResolvedValue(sellers);
+
+      const result = await service.findAll();
+
+      expect(repo.find).toHaveBeenCalledWith({ order: { createdAt: 'ASC' } });
+      expect(result).toEqual(sellers);
     });
   });
 

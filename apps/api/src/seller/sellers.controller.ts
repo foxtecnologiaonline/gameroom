@@ -31,6 +31,13 @@ export class SellersController {
     return this.sellers.apply(user.id, dto);
   }
 
+  @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.Admin)
+  findAll(): Promise<SellerEntity[]> {
+    return this.sellers.findAll();
+  }
+
   /**
    * Must be registered before ':id' — otherwise Nest/Express would match
    * the literal "me" against the ':id' wildcard first.
