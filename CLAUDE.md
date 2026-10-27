@@ -42,7 +42,7 @@ status de ciclo de vida próprios por `SubOrder`). O comprador vê o
     evento por transição — **feito**: `GET /orders/:id`,
     `GET /sellers/:id/orders`, `PATCH /suborders/:id/status`.
 11. `reviews` — liberado só após `delivered` — **feito**.
-12. Storefront: home, busca, produto, carrinho, checkout.
+12. Storefront: home, busca, produto, carrinho, checkout — **feito**.
 13. Painel seller: cadastro de produto, listagem de pedidos.
 14. Painel admin: aprovação de seller, moderação de catálogo.
 
@@ -128,6 +128,41 @@ antes do item 14 do backlog estar em produção.
   oferta está sendo avaliada (não especificado). `GET /sellers/:id/reviews`
   é público (sem `JwtAuthGuard`) — vitrine da loja não exige login.
   Revisitar se o storefront (item 12) precisar de review por produto.
+- **`GET /sellers/:id/public`**: endpoint novo, adicionado junto do item
+  12 porque o storefront precisa mostrar o nome da loja em cada oferta
+  de `GET /products/:id`, mas `GET /sellers/:id` é dono/admin-only. Fatia
+  pública segura (`{id, storeName}`, sem `document`/`recipientId`), sem
+  guard — obrigou mover `@UseGuards(JwtAuthGuard)` de `SellersController`
+  do nível de classe para o nível de método (mesmo padrão já usado em
+  `ReviewsController`/`ShippingController`, que também misturam rotas
+  públicas e privadas no mesmo controller).
+- **CORS**: `apps/api/src/main.ts` agora chama `app.enableCors({origin:
+  process.env.CORS_ORIGIN ?? 'http://localhost:3000'})` — sem isso o
+  storefront (porta 3000) não conseguia nem fazer `fetch` para a API
+  (porta 3001) no browser. Single-origin fixo por env var é suficiente
+  para o MVP (um único frontend); revisitar se surgir um segundo client
+  (ex: painel admin em domínio separado).
+- **Botão de simular webhook do Pix é dev-only no storefront**: como
+  `pix` fica `pending` até `POST /payments/webhook` confirmar (sem
+  integração real do Pagar.me — pendência já documentada acima), a
+  página `/checkout/[orderId]` tem um botão "Simular confirmação"
+  visível só com `NODE_ENV=development`, que chama o webhook direto
+  (sem guard, mesmo contrato que o gateway real usaria). Não existe em
+  produção; é a única forma de destravar um pagamento Pix em dev/demo
+  sem uma integração real.
+- **Carrinho sem seletor de quantidade**: `POST /cart/items` sempre
+  manda `quantity: 1` a partir da página de produto — clicar de novo
+  soma mais uma unidade (`CartService.addItem` já faz upsert por
+  oferta). Ajustar quantidade direto no carrinho (input numérico) não
+  foi implementado — escopo mínimo do item 12; revisitar se virar
+  necessidade real de UX.
+- **Sem lista "meus pedidos"**: o storefront não tem uma página que
+  liste todos os pedidos do buyer porque não existe endpoint para isso
+  no backend (`GET /orders/:id` é só por id — ver pendência do item
+  10/orders). O buyer só revê um pedido específico pela URL
+  `/checkout/[orderId]` logo após o checkout. Um `GET /orders` paginado
+  por buyer é candidato natural para quando o painel do comprador virar
+  necessidade real (não estava no escopo do item 12).
 
 ## Regras de engenharia não-negociáveis
 

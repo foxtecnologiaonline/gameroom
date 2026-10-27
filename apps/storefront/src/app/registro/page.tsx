@@ -6,25 +6,25 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import { registroSchema, type RegistroInput } from "@/lib/schemas";
+import { registerSchema, type RegisterInput } from "@/lib/schemas";
 import { mensagemErro } from "@/lib/format";
 import { AuthShell } from "@/components/AuthShell";
 
 export default function RegistroPage() {
-  const { registrar } = useAuth();
+  const { register: registrar } = useAuth();
   const router = useRouter();
   const [erro, setErro] = useState<string | null>(null);
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<RegistroInput>({ resolver: zodResolver(registroSchema) });
+  } = useForm<RegisterInput>({ resolver: zodResolver(registerSchema) });
 
-  async function onSubmit(data: RegistroInput) {
+  async function onSubmit(data: RegisterInput) {
     setErro(null);
     try {
-      await registrar(data.nome, data.email, data.senha);
-      router.push("/minha-conta");
+      await registrar(data.email, data.password);
+      router.push("/");
     } catch (err) {
       setErro(mensagemErro(err));
     }
@@ -33,18 +33,11 @@ export default function RegistroPage() {
   return (
     <AuthShell
       titulo="Crie sua conta"
-      subtitulo="Leva menos de um minuto. Você vai poder comprar, baixar conteúdos e acompanhar pedidos."
+      subtitulo="Leva menos de um minuto. Você vai poder comprar de vários vendedores em um só pedido."
     >
       <h2 className="mb-6 text-xl font-semibold text-slate-900">Criar conta</h2>
       {erro && <div className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</div>}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-        <div>
-          <label className="label" htmlFor="nome">
-            Nome
-          </label>
-          <input id="nome" className="input" {...register("nome")} />
-          {errors.nome && <p className="field-error">{errors.nome.message}</p>}
-        </div>
         <div>
           <label className="label" htmlFor="email">
             E-mail
@@ -53,18 +46,18 @@ export default function RegistroPage() {
           {errors.email && <p className="field-error">{errors.email.message}</p>}
         </div>
         <div>
-          <label className="label" htmlFor="senha">
+          <label className="label" htmlFor="password">
             Senha
           </label>
-          <input id="senha" type="password" className="input" {...register("senha")} />
-          {errors.senha && <p className="field-error">{errors.senha.message}</p>}
+          <input id="password" type="password" className="input" {...register("password")} />
+          {errors.password && <p className="field-error">{errors.password.message}</p>}
         </div>
         <div>
-          <label className="label" htmlFor="confirmarSenha">
+          <label className="label" htmlFor="confirmPassword">
             Confirmar senha
           </label>
-          <input id="confirmarSenha" type="password" className="input" {...register("confirmarSenha")} />
-          {errors.confirmarSenha && <p className="field-error">{errors.confirmarSenha.message}</p>}
+          <input id="confirmPassword" type="password" className="input" {...register("confirmPassword")} />
+          {errors.confirmPassword && <p className="field-error">{errors.confirmPassword.message}</p>}
         </div>
         <button type="submit" className="btn-primary w-full" disabled={isSubmitting}>
           {isSubmitting ? "Criando conta..." : "Criar conta"}

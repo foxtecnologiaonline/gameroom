@@ -1,74 +1,72 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { api, endpoints, getToken, setToken } from "./api";
-import type { AuthResponse, Usuario } from "./types";
-
-const USER_KEY = "gr_usuario";
+import { api, endpoints, getToken, setRefreshToken, setToken } from "./api";
+import type { AuthenticatedUser, TokenPair } from "./types";
 
 interface AuthContextValue {
-  usuario: Usuario | null;
-  carregando: boolean;
-  login: (email: string, senha: string) => Promise<Usuario>;
-  registrar: (nome: string, email: string, senha: string) => Promise<Usuario>;
+  user: AuthenticatedUser | null;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<AuthenticatedUser>;
+  register: (email: string, password: string) => Promise<AuthenticatedUser>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [carregando, setCarregando] = useState(true);
+  const [user, setUser] = useState<AuthenticatedUser | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const token = getToken();
-    const raw = typeof window !== "undefined" ? window.localStorage.getItem(USER_KEY) : null;
-    if (token && raw) {
-      try {
-        setUsuario(JSON.parse(raw));
-      } catch {
-        setUsuario(null);
-      }
+    if (!token) {
+      setLoading(false);
+      return;
     }
-    setCarregando(false);
+    api
+      .get<AuthenticatedUser>(endpoints.me)
+      .then(setUser)
+      .catch(() => {
+        setToken(null);
+        setRefreshToken(null);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  const persist = useCallback((res: AuthResponse) => {
-    setToken(res.access_token);
-    window.localStorage.setItem(USER_KEY, JSON.stringify(res.usuario));
-    setUsuario(res.usuario);
-    return res.usuario;
+  const persist = useCallback(async (tokens: TokenPair) => {
+    setToken(tokens.accessToken);
+    setRefreshToken(tokens.refreshToken);
+    const me = await api.get<AuthenticatedUser>(endpoints.me);
+    setUser(me);
+    return me;
   }, []);
 
   const login = useCallback(
-    async (email: string, senha: string) => {
-      const res = await api.post<AuthResponse>(endpoints.login, { email, senha }, { auth: false });
-      return persist(res);
+    async (email: string, password: string) => {
+      const tokens = await api.post<TokenPair>(endpoints.login, { email, password }, { auth: false });
+      return persist(tokens);
     },
     [persist]
   );
 
-  const registrar = useCallback(
-    async (nome: string, email: string, senha: string) => {
-      const res = await api.post<AuthResponse>(
-        endpoints.register,
-        { nome, email, senha, tipo: "cliente" },
-        { auth: false }
-      );
-      return persist(res);
+  const register = useCallback(
+    async (email: string, password: string) => {
+      const tokens = await api.post<TokenPair>(endpoints.register, { email, password }, { auth: false });
+      return persist(tokens);
     },
     [persist]
   );
 
   const logout = useCallback(() => {
     setToken(null);
-    window.localStorage.removeItem(USER_KEY);
-    setUsuario(null);
+    setRefreshToken(null);
+    setUser(null);
   }, []);
 
   const value = useMemo(
-    () => ({ usuario, carregando, login, registrar, logout }),
-    [usuario, carregando, login, registrar, logout]
+    () => ({ user, loading, login, register, logout }),
+    [user, loading, login, register, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

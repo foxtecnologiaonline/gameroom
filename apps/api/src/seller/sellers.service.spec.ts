@@ -134,6 +134,24 @@ describe('SellersService', () => {
     });
   });
 
+  describe('findPublicById', () => {
+    it('returns only the public-safe fields', async () => {
+      repo.findOne.mockResolvedValue(buildSeller());
+
+      const result = await service.findPublicById('seller-1');
+
+      expect(result).toEqual({ id: 'seller-1', storeName: 'Loja do Zé' });
+    });
+
+    it('404s for an unknown seller', async () => {
+      repo.findOne.mockResolvedValue(null);
+
+      await expect(service.findPublicById('missing')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+    });
+  });
+
   describe('updateStatus', () => {
     it('approving a seller registers a recipient and grants the seller role', async () => {
       const seller = buildSeller();

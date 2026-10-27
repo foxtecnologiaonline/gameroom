@@ -32,9 +32,9 @@ function LoginForm() {
   async function onSubmit(data: LoginInput) {
     setErro(null);
     try {
-      const usuario = await login(data.email, data.senha);
+      await login(data.email, data.password);
       const next = searchParams.get("next");
-      router.push(next || (usuario.tipo === "admin" ? "/admin" : "/minha-conta"));
+      router.push(next || "/");
     } catch (err) {
       setErro(mensagemErro(err));
     }
@@ -43,7 +43,7 @@ function LoginForm() {
   return (
     <AuthShell
       titulo="Bem-vindo de volta"
-      subtitulo="Acesse sua conta para ver suas compras, baixar conteúdos e acompanhar devoluções."
+      subtitulo="Acesse sua conta para comprar, acompanhar seus pedidos e avaliar vendedores."
     >
       <h2 className="mb-6 text-xl font-semibold text-slate-900">Entrar</h2>
       {erro && <div className="mb-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</div>}
@@ -56,11 +56,11 @@ function LoginForm() {
           {errors.email && <p className="field-error">{errors.email.message}</p>}
         </div>
         <div>
-          <label className="label" htmlFor="senha">
+          <label className="label" htmlFor="password">
             Senha
           </label>
-          <input id="senha" type="password" className="input" {...register("senha")} />
-          {errors.senha && <p className="field-error">{errors.senha.message}</p>}
+          <input id="password" type="password" className="input" {...register("password")} />
+          {errors.password && <p className="field-error">{errors.password.message}</p>}
         </div>
         <button type="submit" className="btn-primary w-full" disabled={isSubmitting}>
           {isSubmitting ? "Entrando..." : "Entrar"}

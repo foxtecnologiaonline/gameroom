@@ -1,40 +1,65 @@
-# Gameroom — Frontend
+# Gameroom — Storefront
 
-Frontend da plataforma de ativos digitais (Next.js 14, App Router, Tailwind).
-Cobre loja pública, área do cliente e painel admin, consumindo a API REST via
-`src/lib/api.ts`.
+Frontend do marketplace multi-vendedor (Next.js 14, App Router, Tailwind) —
+ver `/CLAUDE.md` na raiz do repo para a arquitetura e o backlog completos.
+Backlog item 12: home, busca, produto, carrinho, checkout. Painel seller
+(item 13) e painel admin (item 14) ainda não existem.
 
 ## Rodando localmente
 
 ```bash
-cp .env.example .env.local   # ajuste NEXT_PUBLIC_API_URL para a API real
+cp .env.example .env.local   # NEXT_PUBLIC_API_URL=http://localhost:3001/api
 npm install
 npm run dev
 ```
 
-## Nota sobre o contrato da API
+Precisa da API rodando em paralelo (`npm run dev:api` na raiz) com
+`CORS_ORIGIN` liberando `http://localhost:3000` — já é o padrão de
+`apps/api/.env.example`.
 
-No momento em que este frontend foi implementado, o repositório não continha
-nenhum código de backend (diretório `backend/` inexistente, repositório sem
-histórico). Os endpoints e formatos de request/response foram inferidos a
-partir da especificação funcional (rotas, campos e fluxos descritos na
-especificação técnica), já que a tabela de mapeamento de endpoints não estava
-disponível no documento de origem.
+## Contrato da API
 
-Todos os paths de endpoint estão centralizados em `src/lib/api.ts`
-(`endpoints`), e os tipos correspondentes em `src/lib/types.ts` — ambos os
-arquivos devem ser revisados e ajustados assim que o contrato real do backend
-NestJS estiver disponível. Pontos que provavelmente precisarão de ajuste:
-
-- `GET /vendas/:id` para consultar o status de uma venda em `/checkout/[vendaId]`.
-- `POST /checkout/webhook/simular` como stub de simulação de pagamento em dev.
-- Formato exato do payload de `POST /checkout`, `POST /produtos/:id/conteudos`
-  (multipart) e das respostas de `GET /admin/estoque/:produto_id`.
+Tipos (`src/lib/types.ts`) e paths (`src/lib/api.ts`, `endpoints`) batem
+1:1 com as entidades e controllers reais de `apps/api/src/*` (não são mais
+inferidos — o backend já existe e foi consultado diretamente). Qualquer
+mudança de contrato no backend deve ser refletida nesses dois arquivos.
 
 ## Estrutura
 
-- `src/lib/api.ts` — cliente HTTP com injeção automática de token e parse de erros.
-- `src/lib/auth-context.tsx` — `AuthProvider`/`useAuth`, JWT em `localStorage`.
-- `src/components/guards/` — `RequireAuth`, `RequireAdmin`.
-- `src/components/layouts/` — `ClienteLayout`, `AdminLayout`.
-- `src/app/` — rotas da loja pública, área do cliente ((cliente)) e admin (admin).
+- `src/lib/api.ts` — cliente HTTP (`fetch`) com injeção automática de
+  `Authorization: Bearer`, suporte a `Idempotency-Key` (`checkout`,
+  `payments/charge`) e parse de erro no formato `{statusCode, message}`
+  do Nest.
+- `src/lib/auth-context.tsx` — `AuthProvider`/`useAuth`: login/register
+  contra `POST /auth/login|register` (retornam só `TokenPair`), depois
+  busca o usuário via `GET /me`. Tokens em `localStorage`
+  (`gr_access_token`/`gr_refresh_token`) — sem refresh automático ainda
+  (token expira em 15 min, só volta a pedir login).
+- `src/components/guards/RequireAuth.tsx` — redireciona para
+  `/login?next=<path>` quando não autenticado.
+- `src/app/page.tsx` — home com busca (`GET /products?query=`), debounce
+  de 250ms.
+- `src/app/produtos/[id]/page.tsx` — detalhe do produto
+  (`GET /products/:id`), lista de ofertas por seller (nome resolvido via
+  `GET /sellers/:id/public`), "adicionar ao carrinho"
+  (`POST /cart/items`, exige login).
+- `src/app/carrinho/page.tsx` — `GET /cart`, remover item
+  (`DELETE /cart/items/:id`), "finalizar compra"
+  (`POST /checkout` com `Idempotency-Key`) → redireciona para
+  `/checkout/[orderId]`.
+- `src/app/checkout/[orderId]/page.tsx` — `GET /orders/:id` (Order
+  consolidado + N SubOrders), escolha de método
+  (`credit_card`/`pix`) e `POST /payments/charge` (com
+  `Idempotency-Key`). `credit_card` confirma na hora; `pix` fica
+  `pending` até o webhook — nesse caso a página faz polling de
+  `GET /orders/:id` a cada 4s e, só em `NODE_ENV=development`, mostra um
+  botão que chama `POST /payments/webhook` diretamente (sem integração
+  real do Pagar.me — ver pendência no `CLAUDE.md`).
+- `src/app/login/`, `src/app/registro/` — formulários de auth
+  (`react-hook-form` + `zod`, `src/lib/schemas.ts`).
+
+## Fora de escopo do item 12 (ver pendências no `CLAUDE.md`)
+
+Sem seletor de quantidade no carrinho (cada clique em "adicionar" soma
++1), sem lista "meus pedidos" (não há endpoint `GET /orders` paginado
+por buyer no backend), sem painel seller/admin (itens 13/14).

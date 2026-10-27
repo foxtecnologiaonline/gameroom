@@ -1,4 +1,4 @@
-const GRADIENTES = [
+const GRADIENTS = [
   "from-indigo-500 to-violet-600",
   "from-blue-500 to-cyan-500",
   "from-fuchsia-500 to-pink-600",
@@ -18,10 +18,10 @@ function hash(str: string): number {
   return Math.abs(h);
 }
 
-export function gradienteParaProduto(chave: string): string {
-  return GRADIENTES[hash(chave) % GRADIENTES.length];
+export function gradientForSeed(seed: string): string {
+  return GRADIENTS[hash(seed) % GRADIENTS.length];
 }
 
-export function inicialProduto(nome: string): string {
-  return nome.trim().charAt(0).toUpperCase() || "?";
+export function initialFromTitle(title: string): string {
+  return title.trim().charAt(0).toUpperCase() || "?";
 }

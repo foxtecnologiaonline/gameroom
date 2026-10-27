@@ -5,17 +5,17 @@ import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 
 export function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { usuario, carregando } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!carregando && !usuario) {
+    if (!loading && !user) {
       router.replace(`/login?next=${encodeURIComponent(pathname)}`);
     }
-  }, [carregando, usuario, router, pathname]);
+  }, [loading, user, router, pathname]);
 
-  if (carregando || !usuario) {
+  if (loading || !user) {
     return <div className="py-16 text-center text-slate-500">Carregando...</div>;
   }
 

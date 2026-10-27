@@ -1,119 +1,115 @@
-export type TipoUsuario = "cliente" | "admin";
-
-export interface Usuario {
+export interface AuthenticatedUser {
   id: string;
-  nome: string;
   email: string;
-  tipo: TipoUsuario;
+  roles: string[];
 }
 
-export interface AuthResponse {
-  access_token: string;
-  usuario: Usuario;
+export interface TokenPair {
+  accessToken: string;
+  refreshToken: string;
 }
 
-export type StatusProduto = "ativo" | "inativo" | "rascunho";
+export type OfferCondition = "new" | "used";
 
-export interface ConteudoProduto {
+export interface Offer {
   id: string;
-  tipo: string;
-  titulo: string;
-  ordem: number;
-  url?: string;
-  linkAssinado?: string;
+  productId: string;
+  sellerId: string;
+  priceCents: number;
+  stock: number;
+  condition: OfferCondition;
+  slaDays: number;
+  isBuyboxWinner: boolean;
+  createdAt: string;
 }
 
-export interface Produto {
+export interface Product {
   id: string;
-  nome: string;
-  descricao?: string;
-  preco: number;
-  categoria: string;
-  status: StatusProduto;
-  estoqueLotePadrao?: number;
-  limiarReabastecimento?: number;
-  imagemUrl?: string;
-  conteudos?: ConteudoProduto[];
-  createdAt?: string;
+  title: string;
+  description: string;
+  categoryId: string;
+  brand: string | null;
+  attributes: Record<string, unknown>;
+  createdAt: string;
 }
 
-export type StatusVenda =
-  | "pendente"
-  | "aguardando_pagamento"
-  | "confirmada"
-  | "cancelada"
-  | "reembolsada";
+export interface ProductWithOffers extends Product {
+  offers: Offer[];
+}
 
-export interface Venda {
+export interface CartItem {
   id: string;
-  produtoId: string;
-  produto?: Produto | { id: string; nome: string };
-  comprador?: { id?: string; nome?: string; email: string };
-  email?: string;
-  valor: number;
-  status: StatusVenda;
-  checkoutUrl?: string;
-  codigo?: string;
-  chave?: string;
-  data?: string;
-  createdAt?: string;
-  conteudos?: ConteudoProduto[];
+  cartId: string;
+  offerId: string;
+  quantity: number;
+  createdAt: string;
+  offer: Offer;
 }
 
-export type StatusDevolucao =
-  | "pendente"
-  | "aprovada_automatica"
-  | "aprovada_manual"
-  | "rejeitada";
-
-export interface Devolucao {
+export interface Cart {
   id: string;
-  vendaId: string;
-  venda?: Venda;
-  motivo: string;
-  status: StatusDevolucao;
-  createdAt?: string;
-  data?: string;
+  buyerId: string;
+  createdAt: string;
+  items: CartItem[];
 }
 
-export type StatusUnidadeEstoque =
-  | "disponivel"
-  | "reservado"
-  | "vendido"
-  | "devolvido"
-  | "bloqueado";
-
-export interface UnidadeEstoque {
+export interface OrderItem {
   id: string;
-  produtoId: string;
-  status: StatusUnidadeEstoque;
-  codigo?: string;
-  createdAt?: string;
+  subOrderId: string;
+  offerId: string;
+  quantity: number;
+  unitPriceCents: number;
+  createdAt: string;
 }
 
-export interface ResumoEstoque {
-  disponivel: number;
-  reservado: number;
-  vendido: number;
-  devolvido: number;
-  bloqueado: number;
-}
+export type SubOrderStatus = "pending" | "paid" | "shipped" | "delivered";
 
-export interface Reabastecimento {
+export interface SubOrder {
   id: string;
-  produtoId: string;
-  produto?: { id: string; nome: string };
-  quantidadeGerada: number;
-  estoqueAntes: number;
-  createdAt?: string;
-  data?: string;
+  orderId: string;
+  sellerId: string;
+  subtotalCents: number;
+  shippingCents: number;
+  status: SubOrderStatus;
+  createdAt: string;
+  items: OrderItem[];
 }
 
-export interface PaginatedResponse<T> {
-  data: T[];
-  total: number;
-  page: number;
-  pageSize: number;
+export interface Order {
+  id: string;
+  buyerId: string;
+  totalCents: number;
+  status: string;
+  createdAt: string;
+  subOrders: SubOrder[];
+}
+
+export type PaymentMethod = "credit_card" | "pix";
+export type PaymentStatus = "pending" | "paid" | "failed";
+
+export interface Payment {
+  id: string;
+  orderId: string;
+  gatewayId: string;
+  status: PaymentStatus;
+  method: PaymentMethod;
+  totalCents: number;
+  createdAt: string;
+}
+
+export interface SellerPublic {
+  id: string;
+  storeName: string;
+}
+
+export interface Review {
+  id: string;
+  subOrderId: string;
+  buyerId: string;
+  sellerId: string;
+  rating: number;
+  comment: string | null;
+  createdAt: string;
 }
 
 export interface ApiErrorBody {

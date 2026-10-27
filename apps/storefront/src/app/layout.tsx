@@ -6,8 +6,8 @@ import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 
 export const metadata: Metadata = {
-  title: "Gameroom — Ativos Digitais",
-  description: "Loja de produtos digitais Gameroom",
+  title: "Gameroom — Marketplace",
+  description: "Marketplace multi-vendedor de jogos e ativos digitais",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

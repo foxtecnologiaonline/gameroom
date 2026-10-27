@@ -63,6 +63,12 @@ describe('Sellers (e2e)', () => {
       .expect(401);
   });
 
+  it('404s GET /sellers/:id/public for an unknown seller', () => {
+    return request(app.getHttpServer())
+      .get(`/api/sellers/${randomUUID()}/public`)
+      .expect(404);
+  });
+
   it('walks a seller from application through admin approval', async () => {
     const sellerEmail = `seller-${randomUUID()}@example.com`;
     const buyerToken = await registerAndLogin(sellerEmail);
@@ -96,6 +102,15 @@ describe('Sellers (e2e)', () => {
       .get(`/api/sellers/${sellerId}`)
       .set('Authorization', `Bearer ${buyerToken}`)
       .expect(200);
+
+    // anyone — no token — can read the public store name
+    const publicView = await request(app.getHttpServer())
+      .get(`/api/sellers/${sellerId}/public`)
+      .expect(200);
+    expect(publicView.body).toEqual({
+      id: sellerId,
+      storeName: 'Loja do Zé',
+    });
 
     // a non-admin cannot approve
     await request(app.getHttpServer())

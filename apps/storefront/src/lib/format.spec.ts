@@ -1,11 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { formatarData, formatarPreco, mensagemErro } from "./format";
+import { formatarCentavos, formatarData, formatarPreco, mensagemErro } from "./format";
 
 describe("formatarPreco", () => {
   it("formats a positive value as BRL currency", () => {
     expect(formatarPreco(1234.5)).toBe(
       new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(1234.5),
     );
+  });
+});
+
+describe("formatarCentavos", () => {
+  it("converts cents to BRL currency", () => {
+    expect(formatarCentavos(150090)).toBe(formatarPreco(1500.9));
+  });
+
+  it("formats zero correctly", () => {
+    expect(formatarCentavos(0)).toBe(formatarPreco(0));
   });
 });
 

@@ -1,7 +1,8 @@
 import type { ApiErrorBody } from "./types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api";
-const TOKEN_KEY = "gr_token";
+const TOKEN_KEY = "gr_access_token";
+const REFRESH_KEY = "gr_refresh_token";
 
 export class ApiError extends Error {
   statusCode: number;
@@ -25,34 +26,48 @@ export function setToken(token: string | null) {
   else window.localStorage.removeItem(TOKEN_KEY);
 }
 
+export function getRefreshToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(REFRESH_KEY);
+}
+
+export function setRefreshToken(token: string | null) {
+  if (typeof window === "undefined") return;
+  if (token) window.localStorage.setItem(REFRESH_KEY, token);
+  else window.localStorage.removeItem(REFRESH_KEY);
+}
+
 interface RequestOptions {
   method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;
   auth?: boolean;
-  isFormData?: boolean;
+  /** Sent as the Idempotency-Key header — required by endpoints that move money or stock. */
+  idempotencyKey?: string;
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = "GET", body, auth = true, isFormData = false } = options;
+  const { method = "GET", body, auth = true, idempotencyKey } = options;
 
-  const headers: Record<string, string> = {};
-  if (!isFormData) headers["Content-Type"] = "application/json";
-
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (auth) {
     const token = getToken();
     if (token) headers["Authorization"] = `Bearer ${token}`;
   }
+  if (idempotencyKey) headers["Idempotency-Key"] = idempotencyKey;
 
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
       method,
       headers,
-      body: body === undefined ? undefined : isFormData ? (body as FormData) : JSON.stringify(body),
+      body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
     throw new ApiError(
-      { statusCode: 0, message: "Não foi possível conectar à API. Verifique se o backend está em execução." },
+      {
+        statusCode: 0,
+        message: "Não foi possível conectar à API. Verifique se o backend está em execução.",
+      },
       0
     );
   }
@@ -85,41 +100,30 @@ export const api = {
     request<T>(path, { ...opts, method: "POST", body }),
   patch: <T>(path: string, body?: unknown, opts?: Omit<RequestOptions, "method" | "body">) =>
     request<T>(path, { ...opts, method: "PATCH", body }),
-  put: <T>(path: string, body?: unknown, opts?: Omit<RequestOptions, "method" | "body">) =>
-    request<T>(path, { ...opts, method: "PUT", body }),
   del: <T>(path: string, opts?: Omit<RequestOptions, "method" | "body">) =>
     request<T>(path, { ...opts, method: "DELETE" }),
-  upload: <T>(path: string, formData: FormData, opts?: Omit<RequestOptions, "method" | "body" | "isFormData">) =>
-    request<T>(path, { ...opts, method: "POST", body: formData, isFormData: true }),
 };
 
-/**
- * Paths centralizados para facilitar ajuste caso o contrato real do backend
- * (fora deste repositório na etapa atual) divirja das suposições abaixo.
- */
+/** Paths centralizados — batem com os controllers reais em apps/api/src/*. */
 export const endpoints = {
   login: "/auth/login",
   register: "/auth/register",
+  refresh: "/auth/refresh",
+  me: "/me",
 
-  produtos: "/produtos",
-  produtoDetalhe: (id: string) => `/produtos/${id}`,
-  produtosAdmin: "/produtos?admin=true",
-  produtoConteudos: (id: string) => `/produtos/${id}/conteudos`,
+  products: "/products",
+  product: (id: string) => `/products/${id}`,
+
+  cart: "/cart",
+  cartItems: "/cart/items",
+  cartItem: (id: string) => `/cart/items/${id}`,
 
   checkout: "/checkout",
-  venda: (vendaId: string) => `/vendas/${vendaId}`,
-  simularWebhookPagamento: "/checkout/webhook/simular",
+  order: (id: string) => `/orders/${id}`,
 
-  minhasCompras: "/minhas-compras",
-  minhaCompraDetalhe: (vendaId: string) => `/minhas-compras/${vendaId}`,
+  paymentsCharge: "/payments/charge",
+  paymentsWebhook: "/payments/webhook",
 
-  devolucoes: "/devolucoes",
-  devolucaoDetalhe: (id: string) => `/devolucoes/${id}`,
-
-  adminVendas: "/admin/vendas",
-  adminEstoque: (produtoId: string) => `/admin/estoque/${produtoId}`,
-  adminReabastecimentos: "/admin/reabastecimentos",
-  adminDevolucoesRevisaoManual: "/admin/devolucoes/revisao-manual",
-  adminDevolucaoAprovar: (id: string) => `/admin/devolucoes/${id}/aprovar`,
-  adminDevolucaoRejeitar: (id: string) => `/admin/devolucoes/${id}/rejeitar`,
+  sellerPublic: (id: string) => `/sellers/${id}/public`,
+  sellerReviews: (id: string) => `/sellers/${id}/reviews`,
 };

@@ -16,9 +16,9 @@ export function AuthShell({
           <p className="mt-3 text-sm text-brand-100">{subtitulo}</p>
         </div>
         <ul className="space-y-2 text-sm text-brand-100">
-          <li>• Entrega automática após pagamento</li>
-          <li>• Chaves, gift cards, cursos e assets</li>
-          <li>• Suporte a devoluções</li>
+          <li>• Jogos, contas, colecionáveis e skins</li>
+          <li>• Múltiplos vendedores, uma só compra</li>
+          <li>• Pagamento com split automático por vendedor</li>
         </ul>
       </div>
       <div className="bg-white p-6 sm:p-10">{children}</div>

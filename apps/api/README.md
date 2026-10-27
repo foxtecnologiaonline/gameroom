@@ -16,7 +16,9 @@ npm run start:dev
 ```
 
 A API sobe em `http://localhost:3001/api` (prefixo global `api`), consistente
-com `NEXT_PUBLIC_API_URL` usado pelo storefront.
+com `NEXT_PUBLIC_API_URL` usado pelo storefront. CORS é habilitado só para
+`CORS_ORIGIN` (padrão `http://localhost:3000`, a origem do storefront em
+dev) — sem isso o browser bloqueia as chamadas `fetch` do storefront.
 
 Dependências de infraestrutura (Postgres, Redis) sobem via
 `docker compose up -d` na raiz do monorepo. Depois de subir, rode as
@@ -72,6 +74,9 @@ prefixadas pelo módulo que criam (ex.: `InitIdentity`).
   - `POST /api/sellers` (autenticado) — buyer aplica para virar seller,
     status inicial `pending`. Um único cadastro por usuário.
   - `GET /api/sellers/:id` — dono do cadastro ou admin.
+  - `GET /api/sellers/:id/public` — público (sem guard), devolve só
+    `{id, storeName}`; adicionado no item 12 para o storefront exibir o
+    nome da loja em cada oferta sem precisar de autenticação.
   - `PATCH /api/sellers/:id/status` — só admin (`@Roles(Role.Admin)`).
     Ao aprovar: registra o seller no `RecipientGateway` (hoje um stub —
     ver pendência no `CLAUDE.md`) e promove o usuário para a role `seller`

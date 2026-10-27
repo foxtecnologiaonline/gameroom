@@ -1,45 +1,20 @@
 const COLORS: Record<string, string> = {
-  ativo: "bg-green-100 text-green-800",
-  inativo: "bg-slate-100 text-slate-600",
-  rascunho: "bg-yellow-100 text-yellow-800",
+  // SubOrderStatus
+  pending: "bg-yellow-100 text-yellow-800",
+  paid: "bg-green-100 text-green-800",
+  shipped: "bg-blue-100 text-blue-800",
+  delivered: "bg-emerald-100 text-emerald-800",
 
-  pendente: "bg-yellow-100 text-yellow-800",
-  aguardando_pagamento: "bg-yellow-100 text-yellow-800",
-  confirmada: "bg-green-100 text-green-800",
-  cancelada: "bg-red-100 text-red-800",
-  reembolsada: "bg-slate-100 text-slate-600",
-
-  aprovada_automatica: "bg-green-100 text-green-800",
-  aprovada_manual: "bg-green-100 text-green-800",
-  rejeitada: "bg-red-100 text-red-800",
-
-  disponivel: "bg-green-100 text-green-800",
-  reservado: "bg-yellow-100 text-yellow-800",
-  vendido: "bg-blue-100 text-blue-800",
-  devolvido: "bg-orange-100 text-orange-800",
-  bloqueado: "bg-red-100 text-red-800",
+  // PaymentStatus
+  failed: "bg-red-100 text-red-800",
 };
 
 const LABELS: Record<string, string> = {
-  ativo: "Ativo",
-  inativo: "Inativo",
-  rascunho: "Rascunho",
-
-  pendente: "Pendente",
-  aguardando_pagamento: "Aguardando pagamento",
-  confirmada: "Confirmada",
-  cancelada: "Cancelada",
-  reembolsada: "Reembolsada",
-
-  aprovada_automatica: "Aprovada automaticamente",
-  aprovada_manual: "Aprovada manualmente",
-  rejeitada: "Rejeitada",
-
-  disponivel: "Disponível",
-  reservado: "Reservado",
-  vendido: "Vendido",
-  devolvido: "Devolvido",
-  bloqueado: "Bloqueado",
+  pending: "Pendente",
+  paid: "Pago",
+  shipped: "Enviado",
+  delivered: "Entregue",
+  failed: "Falhou",
 };
 
 export function StatusBadge({ status }: { status: string }) {

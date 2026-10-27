@@ -23,6 +23,11 @@ export interface RequestingUser {
   roles: string[];
 }
 
+export interface SellerPublicView {
+  id: string;
+  storeName: string;
+}
+
 @Injectable()
 export class SellersService {
   constructor(
@@ -70,6 +75,20 @@ export class SellersService {
 
   findById(id: string): Promise<SellerEntity | null> {
     return this.sellers.findOne({ where: { id } });
+  }
+
+  /**
+   * Storefront needs the store name for every offer's seller, but
+   * findByIdForRequester is owner/admin-only. This is the public-safe
+   * slice (no document, recipientId, etc.) for anonymous product pages.
+   */
+  async findPublicById(id: string): Promise<SellerPublicView> {
+    const seller = await this.sellers.findOne({ where: { id } });
+    if (!seller) {
+      throw new NotFoundException('Seller não encontrado');
+    }
+
+    return { id: seller.id, storeName: seller.storeName };
   }
 
   findApprovedByUserId(userId: string): Promise<SellerEntity | null> {
